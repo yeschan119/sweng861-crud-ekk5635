@@ -19,10 +19,11 @@ export default defineConfig({
     },
   },
   // Same origin for the browser, so the backend needs no CORS.
+  // Keys match by prefix; the trailing slash keeps routes like /authors in the app.
   server: {
     proxy: {
-      '/api': BACKEND_URL,
-      '/auth': BACKEND_URL,
+      '/api/': BACKEND_URL,
+      '/auth/': BACKEND_URL,
     },
   },
 })

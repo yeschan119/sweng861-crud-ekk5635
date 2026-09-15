@@ -18,6 +18,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# The port `npm run dev` serves the Week 4 single-page app on.
+DEFAULT_FRONTEND_URL = "http://localhost:5173"
+
 
 def _required(name: str) -> str:
     value = os.getenv(name)
@@ -40,6 +43,7 @@ class Settings:
     session_jwt_ttl_seconds: int
     database_url: str
     sec_user_agent: str
+    frontend_url: str
 
 
 @lru_cache(maxsize=1)
@@ -57,4 +61,9 @@ def get_settings() -> Settings:
         session_jwt_ttl_seconds=int(os.getenv("SESSION_JWT_TTL_SECONDS", "3600")),
         database_url=_required("DATABASE_URL"),
         sec_user_agent=_required("SEC_USER_AGENT"),
+        # Where /auth/callback sends the browser once the login ends. Not a
+        # secret - only a destination - so it defaults to the Vite dev server
+        # rather than refusing to start. The trailing slash is dropped so the
+        # callback can append "/login" without producing "//login".
+        frontend_url=os.getenv("FRONTEND_URL", DEFAULT_FRONTEND_URL).rstrip("/"),
     )

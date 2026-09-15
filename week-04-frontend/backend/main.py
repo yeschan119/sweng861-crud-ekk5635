@@ -8,11 +8,10 @@ coverages resource, the SEC EDGAR client, and global error handling on top.
 import base64
 import hashlib
 import secrets
-from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi import Depends, FastAPI, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from admin import router as admin_router
@@ -47,10 +46,14 @@ STATE_TTL_SECONDS = 600
 # authorization it cannot misuse.
 SCOPES = "openid email profile"
 
-# The login page ships next to the backend rather than as a separate origin, so
-# the browser reaches the API and the page over one host and no CORS
-# configuration has to be opened up for a two-page demo.
-INDEX_HTML = Path(__file__).resolve().parent.parent / "frontend" / "index.html"
+# The single-page app's route that finishes a login. The callback ends every
+# attempt there, successful or not, because a browser that arrives at the API
+# by redirect has no page to show a JSON body in.
+LOGIN_PAGE_PATH = "/login"
+
+# The only reason the frontend is ever given. See callback() for why every
+# failure shares it.
+LOGIN_FAILED = "login_failed"
 
 
 # No startup hook creates the schema: `alembic upgrade head` owns it, and an
@@ -68,12 +71,6 @@ app.include_router(admin_router)
 # route Starlette could not match, a body that failed validation, or a bug -
 # leaves through errors.py in one shape. See that module for why.
 install_error_handlers(app)
-
-
-@app.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    """Serve the login page."""
-    return FileResponse(INDEX_HTML)
 
 
 @app.get("/health")
@@ -150,6 +147,18 @@ def login() -> RedirectResponse:
     return response
 
 
+def _redirect_to_login_page(**fragment: str) -> RedirectResponse:
+    """Send the browser back to the frontend, carrying the outcome in the fragment.
+
+    The fragment rather than the query string: a browser never sends the part
+    after "#" to any server, so the session token does not land in the
+    frontend host's access log, and it is not in the Referer of any request the
+    page goes on to make. The page reads it and clears it from the address bar.
+    """
+    url = f"{get_settings().frontend_url}{LOGIN_PAGE_PATH}#{urlencode(fragment)}"
+    return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
+
+
 @app.get("/auth/callback", dependencies=[Depends(limit_login)])
 def callback(
     request: Request,
@@ -157,7 +166,7 @@ def callback(
     state: str | None = None,
     error: str | None = None,
     db: Session = Depends(get_db),
-) -> JSONResponse:
+) -> RedirectResponse:
     """Leg 3: Google returns the user here with an authorization code.
 
     Order matters. The cheap, local checks run before anything is sent to
@@ -171,18 +180,14 @@ def callback(
     5. create or update the local user;
     6. issue this application's own session token.
 
-    Every failure answers with the same generic message. Distinguishing "bad
-    state" from "expired code" from "unknown signing key" would let a caller
-    map the defenses; the detail goes to the server log instead.
+    Both outcomes redirect to the frontend's login page: the token on success,
+    and on failure one reason shared by every check. Distinguishing "bad state"
+    from "expired code" from "unknown signing key" would let a caller map the
+    defenses; the detail goes to the server log instead.
     """
-    invalid = HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Login could not be completed",
-    )
-
     # The user declined consent, or Google rejected the request.
     if error or not code or not state:
-        raise invalid
+        return _redirect_to_login_page(error=LOGIN_FAILED)
 
     cookie_state = request.cookies.get(STATE_COOKIE)
     nonce = request.cookies.get(NONCE_COOKIE)
@@ -190,10 +195,10 @@ def callback(
     if not cookie_state or not nonce or not code_verifier:
         # No cookies means this callback did not start at /auth/login in this
         # browser - or it sat past the ten-minute window.
-        raise invalid
+        return _redirect_to_login_page(error=LOGIN_FAILED)
 
     if not secrets.compare_digest(state, cookie_state):
-        raise invalid
+        return _redirect_to_login_page(error=LOGIN_FAILED)
 
     try:
         google_tokens = exchange_code_for_tokens(code, code_verifier)
@@ -201,18 +206,13 @@ def callback(
     except OidcError:
         # TODO(week 6): log the OidcError detail through the observability
         # stack. It must not travel to the client.
-        raise invalid from None
+        return _redirect_to_login_page(error=LOGIN_FAILED)
 
     user = upsert_user(db, identity)
-    settings = get_settings()
 
-    response = JSONResponse(
-        {
-            "access_token": issue_session_token(user),
-            "token_type": "bearer",
-            "expires_in": settings.session_jwt_ttl_seconds,
-        }
-    )
+    # Only the token. Its type is always bearer, and the frontend learns that
+    # it expired from the 401 the API answers with, so neither travels.
+    response = _redirect_to_login_page(access_token=issue_session_token(user))
 
     # The login transaction is over; these have no further use, and a spent
     # verifier or nonce sitting in the browser is only exposure.

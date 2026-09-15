@@ -63,7 +63,7 @@ COPY --from=builder /opt/venv /opt/venv
 # copied tree writes a second full copy of it into the next layer.
 # Only the backend. The frontend became a separate single-page app in Week 4,
 # run by its own dev server, so the API no longer serves a page and the image
-# carries none. The build context is still week-03-backend/, as compose sets it.
+# carries none. The build context is still week-04-frontend/, as compose sets it.
 COPY --chown=app:app backend/ /app/
 
 USER app

@@ -1,4 +1,4 @@
-"""FastAPI application for Week 3 — CRUD, external data, and the Week 2 auth layer.
+"""FastAPI application for Week 4 — the Week 3 API, consumed by the Vue single-page app.
 
 Carried over from week-02-auth unchanged: the Google OIDC login flow, the
 session token, the requireAuth gate, and rate limiting. Week 3 adds the
@@ -59,8 +59,8 @@ LOGIN_FAILED = "login_failed"
 # No startup hook creates the schema: `alembic upgrade head` owns it, and an
 # application that alters tables as it boots cannot be deployed twice safely.
 app = FastAPI(
-    title="SWENG 861 Week 3 — Backend API",
-    version="0.2.0",
+    title="SWENG 861 Week 4 — Backend API",
+    version="0.3.0",
 )
 
 app.include_router(coverages_router)

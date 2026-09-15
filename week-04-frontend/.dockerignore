@@ -1,6 +1,6 @@
 # What must never enter the build context.
 #
-# This sits at week-03-backend/, not inside backend/, because that is the build
+# This sits at week-04-frontend/, not inside backend/, because that is the build
 # context compose sets. Docker reads only the .dockerignore at the root of the
 # context, so leaving this file one level down would have silently disabled
 # every rule in it - including the first.

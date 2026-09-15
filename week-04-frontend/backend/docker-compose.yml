@@ -1,4 +1,4 @@
-# PostgreSQL for the Week 3 backend service.
+# PostgreSQL for the Week 4 backend service.
 #
 # Placed next to .env so `docker compose up -d` from this directory picks the
 # credentials up automatically; no password is written into this file.

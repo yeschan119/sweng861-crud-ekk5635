@@ -60,6 +60,17 @@ describe('apiRequest', () => {
     expect(sentHeaders(fetchMock)).not.toHaveProperty('Authorization')
   })
 
+  it('sends GET without a body or Content-Type by default', async () => {
+    const fetchMock = stubFetch(jsonResponse(200, []))
+
+    await apiRequest('/api/coverages')
+
+    const init = sentInit(fetchMock)
+    expect(init.method).toBe('GET')
+    expect(init.body).toBeUndefined()
+    expect(sentHeaders(fetchMock)).not.toHaveProperty('Content-Type')
+  })
+
   it('sends the method and a JSON body', async () => {
     const fetchMock = stubFetch(jsonResponse(201, { id: 1 }))
 
@@ -113,6 +124,27 @@ describe('apiRequest', () => {
 
     expect(error.status).toBe(422)
     expect(error.details).toEqual(details)
+  })
+
+  it('ignores details that are not an array', async () => {
+    stubFetch(jsonResponse(400, { error: 'Bad Request', message: 'Invalid input', details: 'body.cik' }))
+
+    const error = await captureError(apiRequest('/api/coverages', { method: 'POST', body: {} }))
+
+    expect(error.message).toBe('Invalid input')
+    expect(error.details).toEqual([])
+  })
+
+  it.each([
+    ['no message', { detail: 'Internal Server Error' }],
+    ['a message that is not a string', { error: 'Internal Server Error', message: 42 }],
+  ])('falls back to a status message when a JSON error has %s', async (_case, body) => {
+    stubFetch(jsonResponse(500, body))
+
+    const error = await captureError(apiRequest('/api/coverages'))
+
+    expect(error.status).toBe(500)
+    expect(error.message).toBe('Request failed with status 500.')
   })
 
   it('falls back to a status message when the error body is not JSON', async () => {

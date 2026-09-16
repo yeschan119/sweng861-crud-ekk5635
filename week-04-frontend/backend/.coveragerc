@@ -1,0 +1,30 @@
+# What counts as the code under test.
+#
+# The figure quoted in the report has to mean the same thing every time it is
+# quoted, so the omissions live here rather than in whichever flags were typed
+# at the prompt. Measured over everything, the suite reads 82%; measured over
+# the service, 85%. The difference is not noise - it is the test files scoring
+# themselves at 100% and two operational scripts scoring 0% - so the number
+# had to be pinned to one of the two before it could be reported at all.
+#
+# AI use: drafting.
+
+[run]
+branch = False
+omit =
+    # Tests measuring themselves says nothing about the service, and every
+    # line of them runs by definition.
+    tests/*
+    conftest.py
+    # Demo tooling, not the service. Both are run by hand to produce
+    # submission evidence and neither is reachable from the app.
+    seed_demo.py
+    demo_walkthrough.py
+    # Generated migration scaffolding, verified against the real database
+    # rather than by this suite.
+    alembic/*
+    .venv/*
+
+[report]
+show_missing = True
+skip_covered = False

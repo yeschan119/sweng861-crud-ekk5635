@@ -1,11 +1,50 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { computed } from 'vue'
+
+import { isSignedIn, session, signOut } from '@/auth/session'
+
+// A malformed token signs in without an email (see session.ts), so the label must not depend on it.
+const userLabel = computed(() =>
+  session.email === null ? 'Logged in' : `Logged in as ${session.email}`,
+)
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <header class="shell-header">
+    <span class="app-name">SWENG 861 Coverages</span>
+    <nav aria-label="Main">
+      <RouterLink :to="{ name: 'coverages' }">My Coverages</RouterLink>
+    </nav>
+    <div class="user-area">
+      <template v-if="isSignedIn">
+        <span>{{ userLabel }}</span>
+        <!-- Only clears the session: the router's watcher moves to /login, so navigation lives in one place. -->
+        <button type="button" @click="signOut">Sign out</button>
+      </template>
+      <RouterLink v-else :to="{ name: 'login' }">Log in</RouterLink>
+    </div>
+  </header>
+  <main>
+    <RouterView />
+  </main>
 </template>
 
-<style scoped></style>
+<style scoped>
+/* Layout only; spacing for small screens comes with the responsive pass. */
+.shell-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-name {
+  font-weight: bold;
+}
+
+.user-area {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+</style>

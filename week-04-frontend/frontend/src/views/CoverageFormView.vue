@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { createCoverage, getCoverage, updateCoverage, type CoverageStatus } from '@/api/coverages'
 import { useRequest, type RequestState } from '@/composables/useRequest'
+import { showFlash } from '@/notices/flash'
 import {
   fromCoverage,
   toCreateInput,
@@ -66,6 +67,8 @@ async function submit(): Promise<void> {
         ? await updateCoverage(id, toUpdateInput(values))
         : await createCoverage(toCreateInput(values))
     await router.push({ name: 'coverage-detail', params: { id: saved.id } })
+    // After the push, so the router's afterEach for this navigation has already run and cannot clear it.
+    showFlash(mode === 'edit' ? 'Changes saved.' : 'Coverage created.')
   } catch (caught) {
     // A 401 already cleared the session and the router is leaving; anything else is shown here.
     if (!(caught instanceof ApiError)) throw caught

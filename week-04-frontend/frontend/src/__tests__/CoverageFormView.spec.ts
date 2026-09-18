@@ -6,6 +6,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { ApiError } from '@/api/client'
 import { createCoverage, getCoverage, updateCoverage, type Coverage } from '@/api/coverages'
 import { signIn, signOut } from '@/auth/session'
+import { clearFlash, flash } from '@/notices/flash'
 import { createAppRouter } from '@/router'
 import CoverageFormView from '@/views/CoverageFormView.vue'
 
@@ -40,6 +41,7 @@ describe('CoverageFormView', () => {
     wrapper?.unmount()
     scope.stop()
     signOut()
+    clearFlash()
   })
 
   async function mountAt(path: string): Promise<VueWrapper> {
@@ -97,6 +99,8 @@ describe('CoverageFormView', () => {
 
       finish(APPLE)
       await expectNavigationTo('/coverages/7')
+      // Set after the navigation, so it is still there for the page the user lands on.
+      expect(flash.message).toBe('Coverage created.')
     })
 
     it('sends one request when the form is submitted twice while saving', async () => {
@@ -141,6 +145,7 @@ describe('CoverageFormView', () => {
       await flushPromises()
 
       expect(page.find('[role="alert"]').text()).toBe('You already cover this filer')
+      expect(flash.message).toBeNull()
     })
 
     it('shows a plain failure message and lets the user try again', async () => {
@@ -199,6 +204,7 @@ describe('CoverageFormView', () => {
         ticker: null,
       })
       expect(createCoverage).not.toHaveBeenCalled()
+      expect(flash.message).toBe('Changes saved.')
     })
 
     it('offers a retry when the coverage cannot be loaded', async () => {

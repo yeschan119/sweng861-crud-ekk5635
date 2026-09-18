@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope, type EffectScope } from 'vue'
 import { createMemoryHistory, type Router } from 'vue-router'
-import { mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 
 import App from '@/App.vue'
 import { isSignedIn, signIn, signOut } from '@/auth/session'
+import { clearFlash, showFlash } from '@/notices/flash'
 import { createAppRouter } from '@/router'
 
 // Encoded the way the backend's PyJWT does: base64url, unpadded. Only the payload is read.
@@ -28,6 +29,7 @@ describe('App shell', () => {
   afterEach(() => {
     wrapper?.unmount()
     scope.stop()
+    clearFlash()
   })
 
   async function mountAt(path: string): Promise<VueWrapper> {
@@ -82,6 +84,32 @@ describe('App shell', () => {
     await router.push('/coverages/new')
     await vi.waitFor(() => expect(shell.find('main h1').text()).toBe('New Coverage'))
     expect(shell.find('#cik').attributes('readonly')).toBeUndefined()
+  })
+
+  it('shows a flash notice until the next navigation', async () => {
+    signIn(makeToken({ email: 'alice@example.com' }))
+    const shell = await mountAt('/coverages/7')
+    expect(shell.find('.flash').exists()).toBe(false)
+
+    showFlash('Coverage created.')
+    await flushPromises()
+    expect(shell.find('.flash').text()).toContain('Coverage created.')
+
+    await router.push('/coverages')
+    await flushPromises()
+    expect(shell.find('.flash').exists()).toBe(false)
+  })
+
+  it('lets the user dismiss a flash notice without navigating', async () => {
+    signIn(makeToken({ email: 'alice@example.com' }))
+    const shell = await mountAt('/coverages/7')
+    showFlash('Changes saved.')
+    await flushPromises()
+
+    await shell.find('.flash button').trigger('click')
+
+    expect(shell.find('.flash').exists()).toBe(false)
+    expect(router.currentRoute.value.path).toBe('/coverages/7')
   })
 
   it('clears the session on sign out, and the router moves to /login', async () => {

@@ -2,6 +2,7 @@ import { watch } from 'vue'
 import { createRouter, type RouteRecordRaw, type RouterHistory } from 'vue-router'
 
 import { isSignedIn } from '@/auth/session'
+import { clearFlash } from '@/notices/flash'
 
 // Protected unless marked public, so a route added later cannot become public by omission.
 const routes: RouteRecordRaw[] = [
@@ -44,6 +45,9 @@ export function createAppRouter(history: RouterHistory) {
     if (to.name === 'login' && isSignedIn.value) return { name: 'coverages' }
     return true
   })
+
+  // A flash set after a navigation completes survives until the next one; this is that "next one".
+  router.afterEach(clearFlash)
 
   // Guards run only on navigation; this catches a session cleared while staying on a page (e.g. a 401).
   watch(isSignedIn, (signedIn) => {

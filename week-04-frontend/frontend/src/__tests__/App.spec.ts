@@ -50,6 +50,28 @@ describe('App shell', () => {
     expect(shell.find('button').exists()).toBe(false)
   })
 
+  it('offers a skip link that targets the focusable main region', async () => {
+    const shell = await mountAt('/login')
+
+    const skip = shell.find('a.skip-link')
+    expect(skip.text()).toBe('Skip to content')
+    expect(skip.attributes('href')).toBe('#main')
+    expect(shell.find('main').attributes('id')).toBe('main')
+    expect(shell.find('main').attributes('tabindex')).toBe('-1')
+  })
+
+  it('moves focus to main on the skip link without touching the route', async () => {
+    signIn(makeToken({ email: 'alice@example.com' }))
+    await router.push('/coverages/7')
+    wrapper = mount(App, { global: { plugins: [router] }, attachTo: document.body })
+
+    await wrapper.find('a.skip-link').trigger('click')
+    await flushPromises()
+
+    expect(document.activeElement?.id).toBe('main')
+    expect(router.currentRoute.value.fullPath).toBe('/coverages/7')
+  })
+
   it('shows the email and a sign-out button when signed in', async () => {
     signIn(makeToken({ email: 'alice@example.com' }))
     const shell = await mountAt('/coverages')

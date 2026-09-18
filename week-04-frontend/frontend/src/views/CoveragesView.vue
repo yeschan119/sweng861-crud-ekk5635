@@ -23,13 +23,14 @@ function dayOf(timestamp: string): string {
   <p v-else-if="coverages?.length === 0">No coverages yet.</p>
 
   <table v-else>
+    <caption class="visually-hidden">Your coverages</caption>
     <thead>
       <tr>
-        <th>Title</th>
-        <th>Ticker</th>
-        <th>Status</th>
-        <th>Updated</th>
-        <th></th>
+        <th scope="col">Title</th>
+        <th scope="col">Ticker</th>
+        <th scope="col">Status</th>
+        <th scope="col">Updated</th>
+        <th scope="col"><span class="visually-hidden">Actions</span></th>
       </tr>
     </thead>
     <tbody>

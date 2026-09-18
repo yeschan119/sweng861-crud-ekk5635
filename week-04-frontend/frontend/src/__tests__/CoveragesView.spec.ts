@@ -55,6 +55,7 @@ describe('CoveragesView', () => {
     expect(rows[0]!.text()).toContain('2026-09-18')
     expect(rows[1]!.text()).toContain('—')
 
+    expect(page.findAll('th[scope="col"]')).toHaveLength(5)
     const links = page.findAllComponents(RouterLinkStub)
     expect(links[0]!.props('to')).toEqual({ name: 'coverage-detail', params: { id: 1 } })
     expect(links[1]!.props('to')).toEqual({ name: 'coverage-detail', params: { id: 2 } })

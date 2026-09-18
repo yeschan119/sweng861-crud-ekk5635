@@ -17,9 +17,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/CoveragesView.vue'),
   },
   {
+    path: '/coverages/new',
+    name: 'coverage-new',
+    component: () => import('@/views/CoverageFormView.vue'),
+  },
+  {
     path: '/coverages/:id',
     name: 'coverage-detail',
     component: () => import('@/views/CoverageDetailView.vue'),
+  },
+  {
+    path: '/coverages/:id/edit',
+    name: 'coverage-edit',
+    component: () => import('@/views/CoverageFormView.vue'),
   },
   { path: '/', redirect: { name: 'coverages' } },
   { path: '/:unknownPath(.*)*', redirect: { name: 'coverages' } },

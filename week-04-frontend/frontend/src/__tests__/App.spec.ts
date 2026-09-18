@@ -73,6 +73,17 @@ describe('App shell', () => {
     expect(shell.find('main h1').text()).toBe('My Coverages')
   })
 
+  it('mounts a fresh page when two routes share a component', async () => {
+    signIn(makeToken({ email: 'alice@example.com' }))
+    // Both form routes render CoverageFormView; without a key the edit instance would be reused.
+    const shell = await mountAt('/coverages/7/edit')
+    expect(shell.find('main h1').text()).toBe('Edit Coverage')
+
+    await router.push('/coverages/new')
+    await vi.waitFor(() => expect(shell.find('main h1').text()).toBe('New Coverage'))
+    expect(shell.find('#cik').attributes('readonly')).toBeUndefined()
+  })
+
   it('clears the session on sign out, and the router moves to /login', async () => {
     signIn(makeToken({ email: 'alice@example.com' }))
     const shell = await mountAt('/coverages')

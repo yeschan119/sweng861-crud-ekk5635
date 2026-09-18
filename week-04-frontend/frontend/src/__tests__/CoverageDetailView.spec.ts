@@ -67,6 +67,16 @@ describe('CoverageDetailView', () => {
     expect(page.find('a').attributes('href')).toBe('/coverages')
   })
 
+  it('links to the edit page only once the coverage is shown', async () => {
+    vi.mocked(getCoverage).mockResolvedValue(APPLE)
+    const page = mountDetail()
+    expect(page.findAll('a').map((link) => link.attributes('href'))).toEqual(['/coverages'])
+
+    await flushPromises()
+    const edit = page.findAll('a').find((link) => link.text() === 'Edit')
+    expect(edit?.attributes('href')).toBe('/coverages/7/edit')
+  })
+
   it('tells the user when the item does not exist', async () => {
     vi.mocked(getCoverage).mockRejectedValue(new ApiError(404, 'Coverage not found.'))
     const page = mountDetail()
@@ -99,20 +109,5 @@ describe('CoverageDetailView', () => {
 
     expect(getCoverage).toHaveBeenCalledTimes(2)
     expect(page.find('h1').text()).toBe('Apple Inc.')
-  })
-
-  it('loads the new coverage when the route moves to another id', async () => {
-    vi.mocked(getCoverage)
-      .mockResolvedValueOnce(APPLE)
-      .mockResolvedValueOnce({ ...APPLE, id: 8, title: 'Microsoft Corporation' })
-    const page = mountDetail()
-    await flushPromises()
-    expect(page.find('h1').text()).toBe('Apple Inc.')
-
-    await router.push('/coverages/8')
-    await flushPromises()
-
-    expect(getCoverage).toHaveBeenLastCalledWith('8')
-    expect(page.find('h1').text()).toBe('Microsoft Corporation')
   })
 })

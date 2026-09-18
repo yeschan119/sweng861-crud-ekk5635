@@ -46,4 +46,6 @@ function dayOf(timestamp: string): string {
       </tr>
     </tbody>
   </table>
+
+  <p><RouterLink :to="{ name: 'coverage-new' }">New coverage</RouterLink></p>
 </template>

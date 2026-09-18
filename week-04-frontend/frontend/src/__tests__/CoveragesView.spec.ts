@@ -61,6 +61,17 @@ describe('CoveragesView', () => {
     expect(page.find('[role="status"]').exists()).toBe(false)
   })
 
+  it('offers a link to create a coverage, even when the list is empty', async () => {
+    vi.mocked(listCoverages).mockResolvedValue([])
+    const page = mountList()
+    await flushPromises()
+
+    const links = page.findAllComponents(RouterLinkStub)
+    expect(links).toHaveLength(1)
+    expect(links[0]!.props('to')).toEqual({ name: 'coverage-new' })
+    expect(links[0]!.text()).toBe('New coverage')
+  })
+
   it('says so when the list is empty', async () => {
     vi.mocked(listCoverages).mockResolvedValue([])
     const page = mountList()

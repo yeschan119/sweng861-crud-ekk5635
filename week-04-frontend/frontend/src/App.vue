@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
 import { isSignedIn, session, signOut } from '@/auth/session'
+
+const route = useRoute()
 
 // A malformed token signs in without an email (see session.ts), so the label must not depend on it.
 const userLabel = computed(() =>
@@ -25,7 +28,8 @@ const userLabel = computed(() =>
     </div>
   </header>
   <main>
-    <RouterView />
+    <!-- Keyed by path so a route change is a fresh page, even when two routes share a component. -->
+    <RouterView :key="route.fullPath" />
   </main>
 </template>
 

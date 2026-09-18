@@ -67,6 +67,17 @@ describe('CoverageDetailView', () => {
     expect(page.find('a').attributes('href')).toBe('/coverages')
   })
 
+  it('renders a hostile description as text, never as markup', async () => {
+    const hostile = '<script>document.title = "pwned"</script>'
+    vi.mocked(getCoverage).mockResolvedValue({ ...APPLE, description: hostile })
+    const page = mountDetail()
+    await flushPromises()
+
+    expect(page.find('script').exists()).toBe(false)
+    expect(page.find('dl').text()).toContain(hostile)
+    expect(document.title).not.toBe('pwned')
+  })
+
   it('links to the edit page only once the coverage is shown', async () => {
     vi.mocked(getCoverage).mockResolvedValue(APPLE)
     const page = mountDetail()

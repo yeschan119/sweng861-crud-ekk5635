@@ -1,0 +1,335 @@
+/* One stylesheet for the whole app. Layout is flex/grid; sizes come from the tokens below. */
+
+:root {
+  --color-bg: #ffffff;
+  --color-surface: #f6f8fa;
+  --color-text: #1f2328;
+  --color-muted: #57606a;
+  --color-border: #d0d7de;
+  --color-accent: #0b5cad;
+  --color-accent-text: #ffffff;
+  --color-danger: #b42318;
+  --color-danger-bg: #fdecec;
+  --color-success: #166534;
+  --color-success-bg: #e6f4ea;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 1rem;
+  --space-4: 1.5rem;
+  --radius: 6px;
+  /* Minimum tap target on a phone (WCAG 2.5.8 / Apple HIG). */
+  --tap-size: 44px;
+  --content-max-width: 60rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* 100% keeps the user's browser font-size setting; the design assumes 16px by default. */
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  /* A 200-character title without spaces must wrap rather than widen the page on a phone. */
+  overflow-wrap: anywhere;
+}
+
+a {
+  color: var(--color-accent);
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: var(--space-3) 0;
+}
+
+/* --- Shell ----------------------------------------------------------------- */
+
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.app-name {
+  font-weight: 700;
+}
+
+.user-area {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+main {
+  max-width: var(--content-max-width);
+  /* 16px side gutter keeps text off the edge on a phone. */
+  padding: 0 var(--space-3) var(--space-4);
+  margin: 0 auto;
+}
+
+/* --- Controls -------------------------------------------------------------- */
+
+button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-size);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.secondary,
+.button.secondary {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+/* Header controls sit on one line with the text, so they are smaller than page buttons. */
+.shell-header button {
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+}
+
+/* --- Forms ----------------------------------------------------------------- */
+
+form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 32rem;
+}
+
+form > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+label {
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: var(--tap-size);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font: inherit;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+input[readonly] {
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.9rem;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+/* --- Notices --------------------------------------------------------------- */
+
+/* The form-level failure sits above the fields; page-level alerts (load errors) look the same. */
+[role='alert'] {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+[role='alert'] p {
+  margin: 0 0 var(--space-2);
+}
+
+[role='alert'] p:last-child {
+  margin-bottom: 0;
+}
+
+.flash {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-success);
+  border-radius: var(--radius);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.flash button {
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+  background: transparent;
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+/* --- Detail page ----------------------------------------------------------- */
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+dt {
+  color: var(--color-muted);
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  dl {
+    grid-template-columns: 1fr;
+  }
+
+  dt {
+    margin-top: var(--space-2);
+  }
+}
+
+/* --- List page ------------------------------------------------------------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-3) 0;
+}
+
+th,
+td {
+  text-align: left;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+th {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+/* Row links need the same tap height as buttons on a phone. */
+.row-action a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-size);
+}
+
+/* Below this width five columns cannot fit without a horizontal scroll, so each row becomes a card. */
+@media (max-width: 640px) {
+  thead {
+    display: none;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+  }
+
+  tr {
+    margin-bottom: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  td {
+    display: grid;
+    grid-template-columns: 6rem 1fr;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    border: 0;
+  }
+
+  td::before {
+    content: attr(data-label);
+    color: var(--color-muted);
+    font-weight: 600;
+  }
+
+  td.row-action {
+    display: block;
+    padding-top: var(--space-2);
+  }
+
+  td.row-action::before {
+    content: none;
+  }
+}
+
+/* Wide screens: the submit button keeps a natural width; on a phone it spans the form (see below). */
+form > button {
+  justify-self: start;
+  min-width: 8rem;
+}
+
+@media (max-width: 480px) {
+  form > button {
+    justify-self: stretch;
+  }
+}
+
+/* Header links and buttons grow to the tap size only where fingers are the pointer. */
+@media (max-width: 640px) {
+  .shell-header nav a,
+  .shell-header button,
+  .shell-header .user-area a,
+  main > p > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-size);
+  }
+}

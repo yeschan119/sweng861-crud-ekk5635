@@ -33,12 +33,13 @@ function dayOf(timestamp: string): string {
       </tr>
     </thead>
     <tbody>
+      <!-- data-label repeats the header for the phone layout, where rows become cards (see main.css). -->
       <tr v-for="coverage in coverages" :key="coverage.id">
-        <td>{{ coverage.title }}</td>
-        <td>{{ coverage.ticker ?? '—' }}</td>
-        <td>{{ coverage.status }}</td>
-        <td>{{ dayOf(coverage.updated_at) }}</td>
-        <td>
+        <td data-label="Title">{{ coverage.title }}</td>
+        <td data-label="Ticker">{{ coverage.ticker ?? '—' }}</td>
+        <td data-label="Status">{{ coverage.status }}</td>
+        <td data-label="Updated">{{ dayOf(coverage.updated_at) }}</td>
+        <td class="row-action">
           <RouterLink :to="{ name: 'coverage-detail', params: { id: coverage.id } }">
             View Details
           </RouterLink>
@@ -47,5 +48,5 @@ function dayOf(timestamp: string): string {
     </tbody>
   </table>
 
-  <p><RouterLink :to="{ name: 'coverage-new' }">New coverage</RouterLink></p>
+  <p><RouterLink class="button secondary" :to="{ name: 'coverage-new' }">New coverage</RouterLink></p>
 </template>

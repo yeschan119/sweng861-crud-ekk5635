@@ -42,15 +42,5 @@ onMounted(() => {
   <h1>Sign in</h1>
   <p v-if="errorMessage" role="alert">{{ errorMessage }}</p>
   <!-- A plain link: the backend answers with a redirect to Google, so this must leave the SPA. -->
-  <a class="login-button" href="/auth/login">Login with Google</a>
+  <a class="button" href="/auth/login">Login with Google</a>
 </template>
-
-<style scoped>
-.login-button {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  border: 1px solid currentColor;
-  border-radius: 4px;
-  text-decoration: none;
-}
-</style>

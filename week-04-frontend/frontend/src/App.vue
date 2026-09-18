@@ -38,23 +38,3 @@ const userLabel = computed(() =>
     <RouterView :key="route.fullPath" />
   </main>
 </template>
-
-<style scoped>
-/* Layout only; spacing for small screens comes with the responsive pass. */
-.shell-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.app-name {
-  font-weight: bold;
-}
-
-.user-area {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-</style>

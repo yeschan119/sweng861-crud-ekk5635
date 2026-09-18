@@ -52,6 +52,40 @@ h1 {
   margin: var(--space-3) 0;
 }
 
+/* --- Accessibility --------------------------------------------------------- */
+
+/* A ring on every focused control, only for keyboard focus, so mouse users see no outline. */
+:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Off-screen until it receives focus, then it sits on top of the header. */
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: -100px;
+  z-index: 10;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-radius: var(--radius);
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+/* Read by assistive technology, invisible on screen. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 /* --- Shell ----------------------------------------------------------------- */
 
 .shell-header {

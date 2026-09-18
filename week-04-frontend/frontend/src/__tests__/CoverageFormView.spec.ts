@@ -78,6 +78,35 @@ describe('CoverageFormView', () => {
       expect(router.currentRoute.value.path).toBe('/coverages/new')
     })
 
+    it('ties each error to its input for assistive technology', async () => {
+      const page = await mountAt('/coverages/new')
+      const title = page.find('#title')
+      expect(title.attributes('aria-invalid')).toBeUndefined()
+
+      await page.find('form').trigger('submit')
+      await flushPromises()
+
+      expect(title.attributes('aria-invalid')).toBe('true')
+      expect(title.attributes('aria-describedby')).toBe('title-error')
+      expect(page.find('#title-error').text()).toBe('Title is required.')
+      // Ticker is optional, so it is valid and carries no error wiring.
+      expect(page.find('#ticker').attributes('aria-invalid')).toBeUndefined()
+      expect(page.find('#ticker').attributes('aria-describedby')).toBeUndefined()
+      expect(title.attributes('required')).toBeDefined()
+    })
+
+    it('moves focus to the first invalid field after a failed submit', async () => {
+      await router.push('/coverages/new')
+      wrapper = mount(CoverageFormView, { global: { plugins: [router] }, attachTo: document.body })
+      await wrapper.find('#ticker').setValue('x'.repeat(11))
+
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      // Title is invalid too and comes first in reading order, so it wins over ticker.
+      expect(document.activeElement?.id).toBe('title')
+    })
+
     it('sends the cleaned input, shows Saving…, then goes to the new coverage', async () => {
       let finish!: (coverage: Coverage) => void
       vi.mocked(createCoverage).mockReturnValue(new Promise((resolve) => (finish = resolve)))
@@ -184,6 +213,8 @@ describe('CoverageFormView', () => {
       expect((page.find('#status').element as HTMLSelectElement).value).toBe('active')
       expect((page.find('#cik').element as HTMLInputElement).value).toBe('0000320193')
       expect(page.find('#cik').attributes('readonly')).toBeDefined()
+      expect(page.find('#cik').attributes('aria-describedby')).toBe('cik-hint')
+      expect(page.find('#cik-hint').text()).toBe('The CIK cannot be changed after creation.')
     })
 
     it('patches the editable fields only, then goes back to the detail page', async () => {

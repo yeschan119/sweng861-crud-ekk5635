@@ -37,6 +37,20 @@ describe('session', () => {
     expect(session.email).toBe('analyst@example.com')
   })
 
+  it('keeps the token out of web storage and the console', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const token = makeToken({ sub: '1', email: 'analyst@example.com' })
+
+    signIn(token)
+
+    // Memory only (D-4): a token in storage would survive the tab and be readable by any script.
+    expect(localStorage.length).toBe(0)
+    expect(sessionStorage.length).toBe(0)
+    expect(log).not.toHaveBeenCalled()
+    expect(info).not.toHaveBeenCalled()
+  })
+
   it('clears both values on sign-out', () => {
     signIn(makeToken({ sub: '1', email: 'analyst@example.com' }))
 

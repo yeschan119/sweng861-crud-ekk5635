@@ -46,6 +46,6 @@ const { state, data: coverage, error, reload } = useRequest(() => getCoverage(id
       <dt>Updated</dt>
       <dd>{{ coverage.updated_at }}</dd>
     </dl>
-    <p><RouterLink :to="{ name: 'coverage-edit', params: { id: coverage.id } }">Edit</RouterLink></p>
+    <p><RouterLink class="button secondary" :to="{ name: 'coverage-edit', params: { id: coverage.id } }">Edit</RouterLink></p>
   </template>
 </template>

@@ -72,6 +72,17 @@ describe('CoveragesView', () => {
     expect(links[0]!.text()).toBe('New coverage')
   })
 
+  it('renders a hostile title as text, never as markup', async () => {
+    const hostile = '<img src=x onerror="alert(1)">'
+    vi.mocked(listCoverages).mockResolvedValue([{ ...APPLE, title: hostile }])
+    const page = mountList()
+    await flushPromises()
+
+    // D-3: interpolation escapes; the string is visible, no element is created from it.
+    expect(page.find('img').exists()).toBe(false)
+    expect(page.find('tbody td').text()).toBe(hostile)
+  })
+
   it('says so when the list is empty', async () => {
     vi.mocked(listCoverages).mockResolvedValue([])
     const page = mountList()

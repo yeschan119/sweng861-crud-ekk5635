@@ -67,6 +67,13 @@ npm run type-check      # vue-tsc --build
 
 Coverage counts application code under `src/` and leaves out `src/main.ts` (wiring only) and the specs themselves. The HTML report lands in `coverage/`.
 
+Two more checks back the security claims in the root README. Both print nothing when the claim holds:
+
+```sh
+npm run build-only && grep -rIiE "client_secret|SESSION_JWT|POSTGRES|apps\.googleusercontent|GOCSPX" dist/   # no secret in the bundle
+grep -rnE "v-html|localStorage|sessionStorage|console\.(log|info|debug)" src --include='*.vue' --include='*.ts' --exclude-dir=__tests__   # no raw HTML, web storage or console logging
+```
+
 ## Integration test
 
 `src/__tests__/integration/client.integration.spec.ts` drives the real API client against the running Week 4 stack: a signed-out request must answer 401, then a valid session creates, reads and lists a coverage and is refused a duplicate (409). The row it creates is deleted at the end.

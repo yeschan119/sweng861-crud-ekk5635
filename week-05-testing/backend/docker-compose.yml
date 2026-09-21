@@ -1,0 +1,125 @@
+# PostgreSQL for the Week 4 backend service.
+#
+# Placed next to .env so `docker compose up -d` from this directory picks the
+# credentials up automatically; no password is written into this file.
+#
+# Its own container and volume, separate from Week 2: that submission has to
+# stay reproducible, and the Week 3 migrations alter the same `users` table.
+# Both stacks bind 5432, so only one runs at a time.
+# The application now runs here too, in three services: the database, a
+# one-shot migration, and the API. Week 6 extends this with CI/CD.
+
+# Compose derives the project name from the parent directory, which is
+# `backend` for both weeks: without this, `up` here recreates the Week 2
+# container as this one.
+name: sweng861-week5
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: sweng861-week5-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-week5:/var/lib/postgresql/data
+    healthcheck:
+      # Compose reports the service healthy only once Postgres accepts
+      # connections, so the app is not started against a socket that is still
+      # initializing.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Runs the migrations once and exits. Deliberately a service of its own
+  # rather than a step in the application's entrypoint: #23 removed the
+  # create_all() that ran as the app booted, because a service that alters
+  # tables while starting cannot be started twice safely, and an entrypoint
+  # that migrated would reintroduce exactly that. Here the schema is brought up
+  # by one process, and only then does the API start - however many copies of
+  # it there eventually are.
+  migrate:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: sweng861-week5-backend
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Overrides the value in .env. That file is written for a developer
+      # running uvicorn on the host, where the database is on localhost; inside
+      # this network it answers to the service name. One file serves both
+      # because the container-only difference is stated here.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    env_file:
+      - .env
+    restart: "no"
+
+  # No container_name on this service or on migrate, and no published port. A
+  # fixed name allows exactly one container of that name on the daemon, and a
+  # published port can be held by exactly one container - either would forbid
+  # running a second copy of the API, which is the property the separate
+  # migration service exists to preserve. Both are gone now that the gateway is
+  # the way in, so `up --scale api=2` works. The database keeps its name: it is
+  # a singleton by nature, and the capture commands and the probe scripts
+  # address it by that name.
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: sweng861-week5-backend
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        # Waits for the migration to finish and to have succeeded. Without the
+        # exit code in the condition the API would start against a half-built
+        # schema whenever a revision failed, and answer 500s that look like
+        # application bugs.
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    # Read at run time, never built in. The image carries no secret: .env is in
+    # .dockerignore, so it is not in the build context at all, and the same
+    # image can be run against another environment by pointing this elsewhere.
+    env_file:
+      - .env
+    # Reachable only from inside the compose network. Nothing outside can talk
+    # to the API except through the gateway, so the rules stated there are not
+    # optional - a caller cannot route around them by addressing the service
+    # directly.
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  # The one door. Every request arrives here and is passed to whatever copies
+  # of the API are running; see gateway/nginx.conf for what it does on the way
+  # through and why.
+  gateway:
+    image: nginx:1.29-alpine
+    container_name: sweng861-week5-gateway
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      # Read-only: a proxy has no reason to be able to rewrite its own rules,
+      # and a container that cannot edit its configuration is one less thing an
+      # exploit can change.
+      - ./gateway/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8000:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/gateway-health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-week5:

@@ -2,10 +2,13 @@
 #
 # The figure quoted in the report has to mean the same thing every time it is
 # quoted, so the omissions live here rather than in whichever flags were typed
-# at the prompt. Measured over everything, the suite reads 82%; measured over
-# the service, 85%. The difference is not noise - it is the test files scoring
-# themselves at 100% and two operational scripts scoring 0% - so the number
-# had to be pinned to one of the two before it could be reported at all.
+# at the prompt. With Postgres reachable the suite reads 84% measured over
+# everything and 89% measured over the service. The difference is not noise -
+# it is the test files scoring themselves at 100% and two operational scripts
+# scoring 0% - so the number had to be pinned to one of the two before it
+# could be reported at all. With no TEST_DATABASE_URL, 46 of the 76 tests skip
+# and the service figure reads 71% instead, so every quoted number names the
+# run it came from.
 #
 # AI use: drafting.
 

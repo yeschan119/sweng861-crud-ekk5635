@@ -1,15 +1,20 @@
 """Test setup shared by every test in this service.
 
-The environment is populated here, before anything imports config, so the
-suite never reads the developer's .env and never depends on a real Google
-client. Tests that need a token sign one with the key set below.
+The environment is populated here, before anything imports config, so no test
+depends on a real Google client or on whatever the developer happens to have
+configured. .env is read first, because TEST_DATABASE_URL comes from it, and
+the block below then overwrites every key that could carry a real credential.
+Tests that need a token sign one with the key set there.
 
-Most of the suite touches no database. The few tests that do read
-TEST_DATABASE_URL from the real environment and skip when it is unset, so a
-checkout with no Postgres still runs everything else. It is deliberately a
-different database from the one the application uses: the demo rows are what
-the screenshots and the Postman collection point at, and a test run that
-truncated them would destroy submission evidence.
+Close to half the suite needs a database - every test marked needs_db - and
+those skip when there is none, so a checkout with no Postgres still runs the
+rest. Which way a run goes is decided at import time, from TEST_DATABASE_URL.
+Because load_dotenv() reads that name out of .env, unsetting the variable does
+not produce a database-less run: set it to an empty string instead.
+
+The test database is deliberately a different one from the application's. The
+demo rows are what the screenshots and the Postman collection point at, and a
+test run that truncated them would destroy submission evidence.
 """
 
 import json

@@ -39,6 +39,16 @@ def auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def rejected_fields(response) -> list[str]:
+    """The fields a 422 names, e.g. ["body.cik"].
+
+    Only the field list is read back. The wording beside it is pydantic's and
+    moves between releases; which field was refused is this service's own
+    contract and is what these tests are about.
+    """
+    return [entry["field"] for entry in response.json()["details"]]
+
+
 # ---------------------------------------------------------------------------
 # Create
 # ---------------------------------------------------------------------------
@@ -82,6 +92,9 @@ def test_create_rejects_a_caller_supplied_owner_id(api, owner_token, other_token
     )
 
     assert response.status_code == 422
+    # The envelope every failure in this service shares, asserted once here.
+    assert response.json()["error"] == "Unprocessable Content"
+    assert rejected_fields(response) == ["body.owner_id"]
 
 
 @needs_db
@@ -114,6 +127,10 @@ def test_two_users_may_cover_the_same_filer(api, coverage, other_token):
     )
 
     assert response.status_code == 201
+    body = response.json()
+    # A second row for the same filer, not a view of the first tenant's.
+    assert body["cik"] == coverage.cik
+    assert body["id"] != coverage.id
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +144,27 @@ def test_read_returns_the_owners_row(api, coverage, owner_token):
 
     assert response.status_code == 200
     assert response.json()["id"] == coverage.id
+
+
+@needs_db
+def test_a_created_row_comes_back_on_a_later_get(api, owner_token):
+    """The one test that crosses two requests, which is the point of it.
+
+    Create and read each pass through their own response model; this is the
+    only test that asserts the two agree. It does not prove persistence -
+    the api fixture shares one session between both requests.
+    """
+    created = api.post("/api/coverages", json=APPLE, headers=auth(owner_token))
+    assert created.status_code == 201
+
+    fetched = api.get(
+        f"/api/coverages/{created.json()['id']}", headers=auth(owner_token)
+    )
+
+    assert fetched.status_code == 200
+    assert fetched.json() == created.json()
+    # The tenant column stays server-side on the way back out too.
+    assert "owner_id" not in fetched.json()
 
 
 @needs_db
@@ -181,6 +219,7 @@ def test_patch_refuses_to_replace_the_filer(api, coverage, owner_token):
     )
 
     assert response.status_code == 422
+    assert rejected_fields(response) == ["body.cik"]
 
 
 @needs_db
@@ -198,6 +237,11 @@ def test_patch_refuses_an_explicit_null_on_a_required_column(api, coverage, owne
     )
 
     assert response.status_code == 422
+    assert rejected_fields(response) == ["body.title"]
+    # This wording is our own validator's, not pydantic's, so it is pinned.
+    assert response.json()["details"][0]["message"] == (
+        "Value error, title cannot be null"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +287,9 @@ def test_a_stranger_cannot_reach_another_tenants_row(
 
     assert theirs.status_code == 404
     assert theirs.json() == nobodys.json()
+    # Equality alone would also hold if both answered with nothing, so the
+    # body the two share is pinned as well.
+    assert theirs.json() == {"error": "Not Found", "message": "Coverage not found"}
 
 
 @needs_db
@@ -300,3 +347,9 @@ def test_every_endpoint_requires_a_token(api, method, path):
     response = getattr(api, method)(path, **kwargs)
 
     assert response.status_code == 401
+    # One body for all five: a verb that answered differently would leak
+    # which paths exist to a caller with no token.
+    assert response.json() == {
+        "error": "Unauthorized",
+        "message": "Valid access token is required",
+    }

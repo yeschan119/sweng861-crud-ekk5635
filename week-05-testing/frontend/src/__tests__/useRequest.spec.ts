@@ -91,4 +91,27 @@ describe('useRequest', () => {
     expect(request.data.value).toBe('newer')
     expect(request.state.value).toBe('success')
   })
+
+  it('drops a failure that arrives after a newer reload started', async () => {
+    const first = deferred<string>()
+    const second = deferred<string>()
+    const load = vi
+      .fn<() => Promise<string>>()
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+    const request = useRequest(load)
+
+    void request.reload()
+    second.resolve('newer')
+    await flushPromises()
+
+    first.reject(new ApiError(0, 'Could not reach the server.'))
+    await flushPromises()
+
+    // The twin of the case above: the stale guard is in the catch too, so a
+    // late failure cannot repaint a page the newer request already filled.
+    expect(request.state.value).toBe('success')
+    expect(request.data.value).toBe('newer')
+    expect(request.error.value).toBeNull()
+  })
 })

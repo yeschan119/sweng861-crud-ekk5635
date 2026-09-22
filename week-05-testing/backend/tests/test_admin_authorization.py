@@ -46,6 +46,15 @@ def test_the_refusal_is_403_and_not_the_404_a_tenant_gets(api, coverage, owner_t
 
     assert admin_route.status_code == 403
     assert someone_elses_row.status_code == 404
+    # The subject of the test is that the two differ, so both are read.
+    assert admin_route.json() == {
+        "error": "Forbidden",
+        "message": "This endpoint requires the admin role",
+    }
+    assert someone_elses_row.json() == {
+        "error": "Not Found",
+        "message": "Coverage not found",
+    }
 
 
 @needs_db

@@ -121,6 +121,9 @@ def test_collecting_for_someone_elses_coverage_is_a_404(
 
     assert theirs.status_code == 404
     assert theirs.content == missing.content
+    # Equality alone would also hold if both answered with nothing, so the
+    # body the two share is pinned as well.
+    assert theirs.json() == {"error": "Not Found", "message": "Coverage not found"}
 
 
 # --------------------------------------------------------------------------
@@ -157,6 +160,7 @@ def test_reading_someone_elses_coverage_is_a_404(api, coverage, other_token):
 
     assert theirs.status_code == 404
     assert theirs.content == missing.content
+    assert theirs.json() == {"error": "Not Found", "message": "Coverage not found"}
 
 
 # --------------------------------------------------------------------------

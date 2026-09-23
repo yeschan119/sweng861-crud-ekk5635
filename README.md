@@ -557,6 +557,9 @@ remembered. Without `TEST_DATABASE_URL` the 47 database-backed tests skip and
 the run reads 76%, which fails the gate on purpose: a skipped test is not a
 passed one, and a green run over half the suite would be no evidence at all.
 
+The test report is `week-05-testing/docs/week05-test-report.pdf`; the screenshots of
+both runs and both coverage reports are in `week-05-testing/docs/screenshots/`.
+
 ## Where Each Auth Scenario Is Tested
 
 The security model from Weeks 2 and 3 is that `owner_id` comes from the token

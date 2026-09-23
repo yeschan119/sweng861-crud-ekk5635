@@ -31,3 +31,6 @@ omit =
 [report]
 show_missing = True
 skip_covered = False
+# Same bar as the frontend thresholds. pytest-cov reads this when no
+# --cov-fail-under is passed, so `pytest --cov=.` is the gate on its own.
+fail_under = 80

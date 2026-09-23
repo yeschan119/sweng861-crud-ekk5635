@@ -531,3 +531,52 @@ TEST_SESSION_TOKEN=<token> npm run test:integration   # against the running stac
 AI use: the Vue components, API client, validation module, stylesheet and
 their specs were drafted with Claude Code one piece at a time, then reviewed,
 run in the browser against the Week 4 stack, and adjusted by the author.
+
+---
+
+# Week 5 — Testing & Quality
+
+Week 5 lives in `week-05-testing/`, a copy of the Week 4 backend and
+frontend with the test suites extended and gated. The Week 4 folder is left
+as submitted (tag `week-04-submission`).
+
+## Run Everything
+
+One command per side runs the whole suite with coverage and fails below 80%.
+
+```bash
+cd week-05-testing/backend
+pytest --cov=.            # 96 tests, 94% with TEST_DATABASE_URL set (see .env.example)
+
+cd week-05-testing/frontend
+npm run test:coverage     # 103 tests, 99% lines; thresholds live in vitest.config.ts
+```
+
+The backend gate is `fail_under = 80` in `.coveragerc`, so no flag has to be
+remembered. Without `TEST_DATABASE_URL` the 47 database-backed tests skip and
+the run reads 76%, which fails the gate on purpose: a skipped test is not a
+passed one, and a green run over half the suite would be no evidence at all.
+
+## Where Each Auth Scenario Is Tested
+
+The security model from Weeks 2 and 3 is that `owner_id` comes from the token
+and never from the request, and that every query is scoped to it. The tests
+that pin that model down, on each side:
+
+| Scenario | Backend (`backend/tests/`) | Frontend (`frontend/src/__tests__/`) |
+|---|---|---|
+| 401 — no or bad token | `test_protected_endpoint.py`: `test_unauthenticated_request_is_rejected`, `test_bad_tokens_are_rejected` | `client.spec.ts`: "signs out and throws on 401"; `router.spec.ts`: "sends a signed-out user from a protected page to /login" |
+| 200 — own data | `test_coverages_api.py`: `test_read_returns_the_owners_row`, `test_list_returns_only_the_callers_rows`, `test_a_created_row_comes_back_on_a_later_get` | `CoveragesView.spec.ts`: "lists each coverage with a link to its detail page"; `CoverageDetailView.spec.ts`: "asks for the id in the route and shows the coverage" |
+| 404 — another tenant's row | `test_coverages_api.py`: `test_a_stranger_cannot_reach_another_tenants_row` (GET, PATCH and DELETE; the body is asserted equal to the one an unknown id gets), `test_a_refused_delete_leaves_the_row_alone` | `CoverageDetailView.spec.ts`: "tells the user when the item does not exist" |
+| 403 — admin route, ordinary user | `test_admin_authorization.py`: `test_an_ordinary_user_is_refused`, `test_the_refusal_is_403_and_not_the_404_a_tenant_gets` | `client.spec.ts`: "keeps the session and throws on 403"; `CoverageDetailView.spec.ts`: "tells the user when the item is not theirs to see" |
+
+A cross-tenant request answers `404`, not `403`, because a `403` would confirm
+that the row exists. With `404` the response for "not yours" and "no such row"
+is the same byte for byte, so an id cannot be enumerated by probing. The admin
+route answers `403` because it is one fixed, published path that hides nothing.
+The full argument is in the Week 3 section, *Access Control — the Public,
+Authenticated, and Admin Boundary*.
+
+AI use: the unit tests for `oidc.py` and `users.py`, the body assertions in
+the integration tests, and this section were drafted with Claude Code one
+piece at a time, then reviewed, run, and adjusted by the author.

@@ -70,10 +70,10 @@ USER app
 
 EXPOSE 8000
 
-# Readiness: the gateway starts only once the API reaches its database; this does not stop traffic later.
+# Readiness, not liveness: compose's service_healthy decides whether traffic is sent.
 # urllib because the slim image has no curl; a 503 raises, so the probe exits non-zero.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2.5).status == 200 else 1)"
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2).status == 200 else 1)"
 
 # No migration runs here. The application stopped creating its own schema in
 # #23, for the reason that a service which alters tables as it boots cannot be

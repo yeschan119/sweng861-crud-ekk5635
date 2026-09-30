@@ -38,8 +38,8 @@ def test_authenticated_request_succeeds(client, valid_token):
 
 
 def test_health_stays_public(client):
-    """The liveness probe must not require a login."""
-    assert client.get("/health").status_code == 200
+    """The liveness probe must not require a login. test_health.py calls the others without a token."""
+    assert client.get("/health/live").status_code == 200
 
 
 def _tampered_token() -> str:

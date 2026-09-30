@@ -1,0 +1,49 @@
+"""Health probes: /health and /health/ready check the database, /health/live does not.
+
+Unauthenticated on purpose: a load balancer or a container runtime has no login.
+"""
+
+import logging
+
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from db import get_db
+
+logger = logging.getLogger("sweng861.health")
+
+router = APIRouter(prefix="/health", tags=["health"])
+
+UP = "UP"
+DOWN = "DOWN"
+
+
+def is_database_reachable(db: Session) -> bool:
+    """True when the database answers a trivial query."""
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError as exc:
+        # The exception type names the failure without echoing a connection string.
+        logger.warning("database health check failed: %s", type(exc).__name__)
+        return False
+    return True
+
+
+@router.get("")
+@router.get("/ready")
+def readiness(db: Session = Depends(get_db)) -> JSONResponse:
+    """Ready to serve traffic: 200 when the database is reachable, 503 when not."""
+    if is_database_reachable(db):
+        return JSONResponse({"status": UP, "db": UP}, status_code=status.HTTP_200_OK)
+    return JSONResponse(
+        {"status": DOWN, "db": DOWN}, status_code=status.HTTP_503_SERVICE_UNAVAILABLE
+    )
+
+
+@router.get("/live")
+def liveness() -> dict[str, str]:
+    """The process is running and can answer HTTP. Touches nothing else."""
+    return {"status": UP}

@@ -1,0 +1,9 @@
+# AI first drafts
+
+Each `.draft` file is an AI assistant's first output, saved unchanged before any review or fix.
+The reviewed version lives at the path in the table; compare the two with `diff -u <draft> <final>`.
+
+| Draft | Final | Date | Request |
+|---|---|---|---|
+| `health.py.draft` | `backend/health.py` (+ `get_probe_engine` in `backend/db.py`) | 2026-09-30 | Issue #80: `/health` and `/health/ready` report the database (200 UP / 503 DOWN), `/health/live` checks only the process |
+| `Dockerfile.draft` | `backend/Dockerfile` | 2026-09-30 | Issue #80: point the HEALTHCHECK at `/health/ready`. Saved after one edit to the first output: a reference to a local-only design note, "(ADR-017)", was removed from the comment |

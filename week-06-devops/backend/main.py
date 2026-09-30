@@ -20,6 +20,7 @@ from coverages import router as coverages_router
 from financials import router as financials_router
 from db import get_db
 from errors import install_error_handlers
+from health import router as health_router
 from ratelimit import limit_login
 from oidc import (
     OidcError,
@@ -63,6 +64,7 @@ app = FastAPI(
     version="0.3.0",
 )
 
+app.include_router(health_router)
 app.include_router(coverages_router)
 app.include_router(financials_router)
 app.include_router(admin_router)
@@ -71,12 +73,6 @@ app.include_router(admin_router)
 # route Starlette could not match, a body that failed validation, or a bug -
 # leaves through errors.py in one shape. See that module for why.
 install_error_handlers(app)
-
-
-@app.get("/health")
-def health() -> dict[str, str]:
-    """Liveness probe. Deliberately unauthenticated: a monitor has no login."""
-    return {"status": "ok"}
 
 
 @app.get("/auth/login", dependencies=[Depends(limit_login)])

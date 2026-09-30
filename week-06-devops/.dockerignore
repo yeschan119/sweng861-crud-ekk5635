@@ -1,0 +1,41 @@
+# What must never enter the build context.
+#
+# This sits at week-06-devops/, not inside backend/, because that is the build
+# context compose sets. Docker reads only the .dockerignore at the root of the
+# context, so leaving this file one level down would have silently disabled
+# every rule in it - including the first.
+#
+# This file is a security control before it is an optimisation. Everything
+# listed here would otherwise be sent to the daemon and be available to any
+# COPY - including one added later by someone who did not read the Dockerfile.
+
+# The real secrets. .env holds the Google client secret, the session signing
+# key and the database password. It is git-ignored, which says nothing about
+# Docker: without this line a `COPY . .` bakes all three into a layer that
+# survives deletion in a later step, because layers are not editable.
+backend/.env
+
+# A 112 MB virtualenv built for the host's interpreter and the host's
+# architecture. The image builds its own; copying this one in would be both
+# slow and wrong.
+backend/.venv
+
+# Byte code compiled by a different interpreter version.
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+backend/.coverage
+
+# Not part of the service.
+backend/demo_walkthrough.py
+backend/seed_demo.py
+backend/tests
+# Collection and fixtures used to test the service from outside it.
+postman
+
+# The single-page app is not part of this image. Its node_modules alone would
+# otherwise be sent to the daemon on every build.
+frontend
+
+# The compose file describes how to run the image; it is not part of it.
+backend/docker-compose.yml

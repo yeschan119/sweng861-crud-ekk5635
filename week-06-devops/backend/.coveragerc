@@ -1,0 +1,36 @@
+# What counts as the code under test.
+#
+# The figure quoted in the report has to mean the same thing every time it is
+# quoted, so the omissions live here rather than in whichever flags were typed
+# at the prompt. With Postgres reachable the suite reads 84% measured over
+# everything and 89% measured over the service. The difference is not noise -
+# it is the test files scoring themselves at 100% and two operational scripts
+# scoring 0% - so the number had to be pinned to one of the two before it
+# could be reported at all. With no TEST_DATABASE_URL, 46 of the 76 tests skip
+# and the service figure reads 71% instead, so every quoted number names the
+# run it came from.
+#
+# AI use: drafting.
+
+[run]
+branch = False
+omit =
+    # Tests measuring themselves says nothing about the service, and every
+    # line of them runs by definition.
+    tests/*
+    conftest.py
+    # Demo tooling, not the service. Both are run by hand to produce
+    # submission evidence and neither is reachable from the app.
+    seed_demo.py
+    demo_walkthrough.py
+    # Generated migration scaffolding, verified against the real database
+    # rather than by this suite.
+    alembic/*
+    .venv/*
+
+[report]
+show_missing = True
+skip_covered = False
+# Same bar as the frontend thresholds. pytest-cov reads this when no
+# --cov-fail-under is passed, so `pytest --cov=.` is the gate on its own.
+fail_under = 80

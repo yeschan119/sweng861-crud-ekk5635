@@ -1,0 +1,60 @@
+import { watch } from 'vue'
+import { createRouter, type RouteRecordRaw, type RouterHistory } from 'vue-router'
+
+import { isSignedIn } from '@/auth/session'
+import { clearFlash } from '@/notices/flash'
+
+// Protected unless marked public, so a route added later cannot become public by omission.
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('@/views/LoginView.vue'),
+    meta: { public: true },
+  },
+  {
+    path: '/coverages',
+    name: 'coverages',
+    component: () => import('@/views/CoveragesView.vue'),
+  },
+  {
+    path: '/coverages/new',
+    name: 'coverage-new',
+    component: () => import('@/views/CoverageFormView.vue'),
+  },
+  {
+    path: '/coverages/:id',
+    name: 'coverage-detail',
+    component: () => import('@/views/CoverageDetailView.vue'),
+  },
+  {
+    path: '/coverages/:id/edit',
+    name: 'coverage-edit',
+    component: () => import('@/views/CoverageFormView.vue'),
+  },
+  { path: '/', redirect: { name: 'coverages' } },
+  { path: '/:unknownPath(.*)*', redirect: { name: 'coverages' } },
+]
+
+// History is a parameter so tests can pass memory history instead of the browser's.
+export function createAppRouter(history: RouterHistory) {
+  const router = createRouter({ history, routes })
+
+  router.beforeEach((to) => {
+    if (to.meta.public !== true && !isSignedIn.value) return { name: 'login' }
+    if (to.name === 'login' && isSignedIn.value) return { name: 'coverages' }
+    return true
+  })
+
+  // A flash set after a navigation completes survives until the next one; this is that "next one".
+  router.afterEach(clearFlash)
+
+  // Guards run only on navigation; this catches a session cleared while staying on a page (e.g. a 401).
+  watch(isSignedIn, (signedIn) => {
+    if (!signedIn && router.currentRoute.value.meta.public !== true) {
+      void router.replace({ name: 'login' })
+    }
+  })
+
+  return router
+}

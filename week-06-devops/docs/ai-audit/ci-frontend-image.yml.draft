@@ -1,0 +1,14 @@
+      - name: Build the frontend image
+        run: docker build -t "$FRONTEND_IMAGE:$GITHUB_SHA" -t "$FRONTEND_IMAGE:week6" week-06-devops/frontend
+      - name: Smoke-test the frontend image
+        run: |
+          docker run -d --rm --name web -p 8080:8080 "$FRONTEND_IMAGE:$GITHUB_SHA"
+          for _ in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8080/ | grep -q 'id="app"' && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Check the frontend image runs as non-root and carries no Node
+        run: |
+          ! docker run --rm --entrypoint sh "$FRONTEND_IMAGE:$GITHUB_SHA" -c 'command -v node'
+          test "$(docker run --rm --entrypoint id "$FRONTEND_IMAGE:$GITHUB_SHA" -u)" != "0"

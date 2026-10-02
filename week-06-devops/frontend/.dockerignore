@@ -1,0 +1,6 @@
+# Only what `npm run build` needs is sent to the builder.
+node_modules
+dist
+coverage
+.eslintcache
+.env*

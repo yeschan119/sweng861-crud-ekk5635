@@ -61,6 +61,37 @@ npm run type-check
 Without `TEST_DATABASE_URL` the 47 database-backed tests skip and the backend
 gate fails on purpose: a skipped test is not a passed one.
 
+## Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and
+pull request and tests `week-06-devops/`. Actions is disabled on this
+repository by the organization, so the same commits are pushed to a public
+mirror, [yeschan119/sweng861-crud-ekk5635](https://github.com/yeschan119/sweng861-crud-ekk5635/actions),
+and the runs live there.
+
+| Job | Runs | Fails when |
+|---|---|---|
+| `backend` | `ruff check .`, then `pytest --cov=.` against a PostgreSQL 17 service container | a lint rule, a test, or coverage under 80% (`.coveragerc`) |
+| `frontend` | `npm ci --ignore-scripts`, `npm run lint`, `npm run test:coverage`, `npm run build` | a lint rule, a test, coverage under 80% (`vitest.config.ts`), or a type error |
+| `package` | after both pass: builds the backend image as `sweng861-week6-backend:<commit SHA>` and `:week6`, starts it, waits for `/health/live`, checks it does not run as root | the build, the start, or a root user |
+
+The workflow token is read-only and the image is not pushed to a registry.
+Each step reproduces locally:
+
+```bash
+cd week-06-devops/backend
+ruff check . && pytest --cov=.        # needs TEST_DATABASE_URL
+
+cd week-06-devops/frontend
+npm ci --ignore-scripts && npm run lint && npm run test:coverage && npm run build
+
+cd week-06-devops
+docker build -f backend/Dockerfile -t sweng861-week6-backend:week6 .
+```
+
+A green run and two deliberately failing ones (a broken assertion, and the
+coverage gate raised to 99%) are in `week-06-devops/docs/screenshots/`.
+
 ## Week 1 — Health API
 
 `week-01-setup/backend/`: `GET /health` answers `{"status": "ok"}` and

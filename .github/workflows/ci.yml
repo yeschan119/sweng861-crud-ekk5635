@@ -33,7 +33,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      # Without it 46 tests skip and coverage drops below the gate.
+      # Without it the database-backed tests skip and coverage drops below the gate.
       TEST_DATABASE_URL: postgresql+psycopg://sweng861:sweng861@localhost:5432/sweng861_week6_test
     steps:
       - uses: actions/checkout@v7

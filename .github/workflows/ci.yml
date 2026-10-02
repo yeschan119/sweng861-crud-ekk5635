@@ -48,3 +48,26 @@ jobs:
       - run: ruff check .
       # The 80% threshold lives in .coveragerc, so this line and a local run use the same gate.
       - run: pytest --cov=.
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: week-06-devops/frontend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Matches the Node used for local development; package.json engines allows 22.18+.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: week-06-devops/frontend/package-lock.json
+      # No package needs an install script on Linux, so none gets to run one.
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      # The 80% thresholds live in vitest.config.ts.
+      - run: npm run test:coverage
+      - run: npm run build

@@ -71,3 +71,32 @@ jobs:
       # The 80% thresholds live in vitest.config.ts.
       - run: npm run test:coverage
       - run: npm run build
+
+  package:
+    # No image is built from code that failed lint or tests.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      IMAGE: sweng861-week6-backend
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Same context and Dockerfile as docker-compose.yml, so CI builds what compose runs.
+      - name: Build the backend image
+        run: >-
+          docker build -f week-06-devops/backend/Dockerfile
+          -t "$IMAGE:$GITHUB_SHA" -t "$IMAGE:week6" week-06-devops
+      # A build can succeed on an image that cannot start; /health/live needs no config or database.
+      - name: Smoke-test the image
+        run: |
+          docker run -d --rm --name smoke -p 8000:8000 "$IMAGE:$GITHUB_SHA"
+          for _ in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8000/health/live && exit 0
+            sleep 1
+          done
+          docker logs smoke
+          exit 1
+      - name: Check the image runs as a non-root user
+        run: test "$(docker run --rm --entrypoint id "$IMAGE:$GITHUB_SHA" -u)" != "0"

@@ -11,7 +11,7 @@ Connect for login.
 
 Each week's folder is a copy of the previous week plus that week's work, so a
 submitted folder is never changed afterwards. Tags `week-03-submission` and
-`week-04-submission` mark the submitted commits. The latest stack is Week 5.
+`week-04-submission` mark the submitted commits. The latest stack is Week 6.
 
 | Folder | Week | Adds | Design notes |
 |---|---|---|---|
@@ -20,29 +20,36 @@ submitted folder is never changed afterwards. Tags `week-03-submission` and
 | `week-03-backend/` | 3 | Coverages CRUD scoped by owner, SEC EDGAR client, Nginx gateway, admin role, one error shape | [`docs/week-03-backend.md`](docs/week-03-backend.md) |
 | `week-04-frontend/` | 4 | Vue 3 single-page app: login, list, detail, create and edit | [`docs/week-04-frontend.md`](docs/week-04-frontend.md) |
 | `week-05-testing/` | 5 | Unit, integration and component tests with 80% coverage gates | [`week-05-testing/docs/week05-test-report.pdf`](week-05-testing/docs/week05-test-report.pdf) |
+| `week-06-devops/` | 6 | CI pipeline, JSON logs under a request ID, Prometheus metrics, Grafana dashboard, SLO alerts and runbooks, front-end image | sections below |
 
 ## Run the current stack
 
-Requires Docker, Python 3.10+, Node 22.18+ (or 24.12+), and a Google OAuth client whose
-authorized redirect URI is `http://localhost:8000/auth/callback`.
+Requires Docker and a Google OAuth client whose authorized redirect URI is
+`http://localhost:8000/auth/callback`.
 
 ```bash
-# API: PostgreSQL, one-shot migration, FastAPI, and the Nginx gateway on :8000
-cd week-05-testing/backend
+cd week-06-devops/backend
 cp .env.example .env          # GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, SESSION_JWT_SECRET, POSTGRES_PASSWORD, SEC_USER_AGENT
-docker compose up -d --build
-curl http://localhost:8000/health   # {"status":"ok"}
-
-# Front end on :5173, proxying /api and /auth to :8000
-cd ../frontend
-npm install
-npm run dev
+docker compose up -d --build  # PostgreSQL, migration, API, front end, gateway, Prometheus, Grafana
+curl http://localhost:8000/health   # {"status":"UP","db":"UP"}
 ```
 
-Open `http://localhost:5173/` and click **Login with Google**. Earlier weeks
-bind the same ports, so stop their stacks first. Every variable is documented
-in `week-05-testing/backend/.env.example`; the front end has no environment
-file, so no secret reaches the bundle.
+Open `http://localhost:8000/` and click **Login with Google**. The gateway on
+:8000 is the only door:
+
+- `/api`, `/auth`, `/health`, `/docs` and `/openapi.json` go to the API;
+- `/metrics` is refused;
+- everything else is the single-page app, served by unprivileged Nginx from its own image.
+
+Earlier weeks bind the same ports, so stop their stacks first. Every variable
+is documented in `week-06-devops/backend/.env.example`. The front end has no
+environment file, so no secret reaches the bundle.
+
+To work on the front end with hot reload, run `npm run dev` in
+`week-06-devops/frontend` (:5173, proxying `/api` and `/auth` to :8000). Set
+`FRONTEND_URL` on the `api` service in `docker-compose.yml` to
+`http://localhost:5173` while you do, so a login returns there instead of to
+:8000.
 
 ## Test
 

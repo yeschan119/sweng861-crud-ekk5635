@@ -85,6 +85,8 @@ services:
         condition: service_completed_successfully
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      # The SPA is served by the gateway on :8000, so that is where a login returns to.
+      FRONTEND_URL: http://localhost:8000
     # Read at run time, never built in. The image carries no secret: .env is in
     # .dockerignore, so it is not in the build context at all, and the same
     # image can be run against another environment by pointing this elsewhere.
@@ -98,6 +100,20 @@ services:
       - "8000"
     restart: unless-stopped
 
+  # The built single-page app. No host port: it is reached only through the gateway.
+  frontend:
+    build:
+      context: ../frontend
+    image: sweng861-week6-frontend
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8080/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   # The one door. Every request arrives here and is passed to whatever copies
   # of the API are running; see gateway/nginx.conf for what it does on the way
   # through and why.
@@ -106,6 +122,8 @@ services:
     container_name: sweng861-week6-gateway
     depends_on:
       api:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
     volumes:
       # Read-only: a proxy has no reason to be able to rewrite its own rules,

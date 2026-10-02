@@ -79,6 +79,7 @@ jobs:
     timeout-minutes: 10
     env:
       IMAGE: sweng861-week6-backend
+      FRONTEND_IMAGE: sweng861-week6-frontend
     steps:
       - uses: actions/checkout@v7
         with:
@@ -100,6 +101,27 @@ jobs:
           exit 1
       - name: Check the image runs as a non-root user
         run: test "$(docker run --rm --entrypoint id "$IMAGE:$GITHUB_SHA" -u)" != "0"
+      # Same tag scheme as the backend; its own context, since week-06-devops/.dockerignore drops frontend/.
+      - name: Build the frontend image
+        run: >-
+          docker build -t "$FRONTEND_IMAGE:$GITHUB_SHA" -t "$FRONTEND_IMAGE:week6"
+          week-06-devops/frontend
+      # The root and a history-mode route must both return the app, or a reload would 404.
+      - name: Smoke-test the frontend image
+        run: |
+          docker run -d --rm --name web -p 8080:8080 "$FRONTEND_IMAGE:$GITHUB_SHA"
+          for _ in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8080/ | grep -q 'id="app"'; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8080/coverages/1 | grep -q 'id="app"'
+      # `if`, not `! cmd`: bash -e does not stop on a failed negation, so that line could never fail.
+      - name: Check the frontend image runs as non-root and carries no Node
+        run: |
+          test "$(docker run --rm --entrypoint id "$FRONTEND_IMAGE:$GITHUB_SHA" -u)" != "0"
+          if docker run --rm --entrypoint sh "$FRONTEND_IMAGE:$GITHUB_SHA" -c 'command -v node'; then
+            echo "Node is in the runtime image"; exit 1
+          fi
 
   alert-rules:
     runs-on: ubuntu-latest

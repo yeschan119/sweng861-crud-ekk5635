@@ -1,0 +1,14 @@
+  package:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build the backend image
+        run: |
+          docker build -f week-06-devops/backend/Dockerfile \
+            -t sweng861-backend:${{ github.sha }} \
+            -t sweng861-backend:week6 \
+            week-06-devops

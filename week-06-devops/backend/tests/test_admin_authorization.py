@@ -11,8 +11,6 @@ answers, and the difference is the subject of one of the tests below.
 AI use: drafting and test-case enumeration.
 """
 
-import pytest
-
 from conftest import needs_db
 
 ADMIN_PATH = "/api/admin/coverages"

@@ -1,0 +1,25 @@
+# --- observability/prometheus/prometheus.yml ---
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: api
+    metrics_path: /metrics
+    dns_sd_configs:
+      - names: [api]
+        type: A
+        port: 8000
+
+# --- docker-compose.yml service ---
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    container_name: sweng861-week6-prometheus
+    depends_on:
+      - api
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata-week6:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped

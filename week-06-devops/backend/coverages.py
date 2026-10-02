@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from db import get_db
+from metrics import COVERAGES_CREATED
 from models import Coverage
 from schemas import CoverageCreate, CoverageRead, CoverageUpdate
 from security import AuthenticatedUser, require_auth
@@ -65,6 +66,7 @@ def create_coverage(
         "coverage created",
         extra={"event": "coverage_created", "coverage_id": coverage.id, "owner_id": user.id},
     )
+    COVERAGES_CREATED.inc()
     return coverage
 
 

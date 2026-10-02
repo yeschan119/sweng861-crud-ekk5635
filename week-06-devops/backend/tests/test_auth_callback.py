@@ -191,3 +191,57 @@ def test_an_oidc_failure_without_a_cause_logs_its_fixed_message(
 
     [event] = _auth_events(json_logs)
     assert event["reason"] == "oidc_error:id_token nonce did not match the login attempt"
+
+
+# ---------------------------------------------------------------------------
+# The login SLI counter: client-caused refusals are kept out of the service's failures
+# ---------------------------------------------------------------------------
+
+
+def _logins(outcome):
+    from prometheus_client import REGISTRY
+
+    return REGISTRY.get_sample_value("logins_total", {"outcome": outcome})
+
+
+def test_every_login_outcome_exists_before_the_first_attempt():
+    for outcome in ("succeeded", "client_error", "service_error"):
+        assert _logins(outcome) is not None
+
+
+def test_a_completed_login_counts_as_succeeded(client):
+    before = _logins("succeeded")
+
+    _callback(client, "code=abc&state=expected-state")
+
+    assert _logins("succeeded") == before + 1
+
+
+@pytest.mark.parametrize(
+    ("query", "cookies"),
+    [
+        ("error=access_denied&state=expected-state", COOKIES),
+        ("code=abc&state=expected-state", {}),
+        ("code=abc&state=forged-state", COOKIES),
+    ],
+    ids=["consent-declined", "no-cookies", "state-mismatch"],
+)
+def test_a_refusal_the_caller_caused_is_a_client_error(client, query, cookies):
+    before_client, before_service = _logins("client_error"), _logins("service_error")
+
+    _callback(client, query, cookies)
+
+    assert _logins("client_error") == before_client + 1
+    assert _logins("service_error") == before_service
+
+
+def test_a_provider_failure_is_a_service_error(client, monkeypatch):
+    def reject(id_token, nonce):
+        raise OidcError("signature did not verify")
+
+    monkeypatch.setattr(main, "verify_id_token", reject)
+    before = _logins("service_error")
+
+    _callback(client, "code=abc&state=expected-state")
+
+    assert _logins("service_error") == before + 1

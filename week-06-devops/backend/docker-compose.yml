@@ -121,5 +121,57 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Metrics store. No depends_on: it should keep running, and record up=0, when the API is down.
+  prometheus:
+    image: prom/prometheus:v3.13.4
+    container_name: sweng861-week6-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      # The SLOs are measured over 7 days; one more day of margin, and no 15-day default.
+      - --storage.tsdb.retention.time=8d
+    volumes:
+      - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata-week6:/prometheus
+    ports:
+      # Loopback only: the query API answers anyone who can reach it.
+      - "127.0.0.1:9090:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # Dashboards, provisioned from observability/grafana. Read-only for everyone:
+  # there is no account to sign in with, so the default admin/admin is never usable.
+  grafana:
+    image: grafana/grafana:13.0.10
+    container_name: sweng861-week6-grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Hiding the form is not enough: the API still accepts admin:admin over basic auth.
+      GF_AUTH_BASIC_ENABLED: "false"
+      # No calls home from a local stack.
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   pgdata-week6:
+  promdata-week6:

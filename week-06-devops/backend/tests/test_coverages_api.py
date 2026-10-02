@@ -82,6 +82,18 @@ def test_create_logs_the_new_id_under_the_request_id(api, owner_token, json_logs
 
 
 @needs_db
+def test_create_increments_the_coverages_created_counter(api, owner_token):
+    from prometheus_client import REGISTRY
+
+    before = REGISTRY.get_sample_value("coverages_created_total")
+
+    api.post("/api/coverages", json=APPLE, headers=auth(owner_token))
+    api.post("/api/coverages", json=APPLE, headers=auth(owner_token))  # 409, not counted
+
+    assert REGISTRY.get_sample_value("coverages_created_total") == before + 1
+
+
+@needs_db
 def test_create_never_returns_owner_id(api, owner_token):
     """The response model has no owner_id, and that is worth pinning.
 

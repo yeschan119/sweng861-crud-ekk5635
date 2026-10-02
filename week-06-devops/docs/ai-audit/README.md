@@ -14,3 +14,8 @@ The reviewed version lives at the path in the table; compare the two with `diff 
 | `request_logging.py.draft` | `backend/request_logging.py` | 2026-10-02 | Issue #80: middleware that assigns or propagates a request ID and logs one JSON line per request |
 | `nginx-log-format.conf.draft` | `log_format no_query` in `backend/gateway/nginx.conf` | 2026-10-02 | Issue #80: a gateway access log format that leaves the query string out |
 | `event-logging.py.draft` | `_login_failed` and the login events in `backend/main.py`, `coverage_created` in `backend/coverages.py`, `unexpected_error` in `backend/errors.py` | 2026-10-02 | Issue #80: log login success and failure, coverage creation and unexpected errors as structured events |
+| `metrics.py.draft` | `backend/metrics.py` | 2026-10-02 | Issue #81: Prometheus request count and latency by route template, served at /metrics |
+| `nginx-metrics-block.conf.draft` | `location ^~ /metrics` in `backend/gateway/nginx.conf` | 2026-10-02 | Issue #81: keep /metrics off the public gateway path |
+| `prometheus.yml.draft` | `observability/prometheus/prometheus.yml` and the `prometheus` service in `backend/docker-compose.yml` | 2026-10-02 | Issue #81: scrape the API from inside the compose network |
+| `grafana.yml.draft` | `observability/grafana/provisioning/` and the `grafana` service in `backend/docker-compose.yml` | 2026-10-02 | Issue #81: Grafana with the data source and dashboard provisioned from files, read-only |
+| `grafana-dashboard.json.draft` | `observability/grafana/dashboards/api.json` | 2026-10-02 | Issue #81: request rate, 4xx/5xx error rate, p95 latency, coverages created, logins, and three SLO panels |

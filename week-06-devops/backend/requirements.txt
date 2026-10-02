@@ -15,6 +15,9 @@ psycopg[binary]==3.3.5
 # Schema migrations. create_all() only ever adds tables; Week 3 alters users.
 alembic==1.19.2
 
+# Request count and latency for Prometheus, served at /metrics
+prometheus-client==0.26.0
+
 # Reads .env so secrets stay out of source
 python-dotenv==1.2.3
 

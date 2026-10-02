@@ -131,8 +131,7 @@ def db_engine():
     if not TEST_DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL is not set")
 
-    from sqlalchemy import create_engine, text
-    from sqlalchemy.engine import make_url
+    from sqlalchemy import create_engine
 
     from models import Base
 

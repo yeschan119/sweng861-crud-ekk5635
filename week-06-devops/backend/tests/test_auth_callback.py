@@ -120,3 +120,74 @@ def test_a_token_google_would_not_vouch_for_is_refused_the_same_way(
 
     assert response.status_code == 302
     assert _fragment(response) == {"error": [main.LOGIN_FAILED]}
+
+
+# ---------------------------------------------------------------------------
+# What the server log records about each outcome (the client sees none of it)
+# ---------------------------------------------------------------------------
+
+
+def _auth_events(lines):
+    import json
+
+    return [e for e in map(json.loads, lines) if e.get("logger") == "sweng861.auth"]
+
+
+def test_a_completed_login_is_logged_by_user_id_not_email(client, json_logs):
+    _callback(client, "code=abc&state=expected-state")
+
+    [event] = _auth_events(json_logs)
+    assert event["event"] == "login_succeeded"
+    assert event["user_id"] == 7
+    assert "student@psu.edu" not in "\n".join(json_logs)
+
+
+@pytest.mark.parametrize(
+    ("query", "cookies", "reason"),
+    [
+        ("error=access_denied&state=expected-state", COOKIES, "provider_error"),
+        ("code=abc&state=expected-state", {}, "missing_cookies"),
+        ("code=abc&state=forged-state", COOKIES, "state_mismatch"),
+    ],
+    ids=["consent-declined", "no-cookies", "state-mismatch"],
+)
+def test_a_refused_login_logs_which_check_refused_it(
+    client, json_logs, query, cookies, reason
+):
+    _callback(client, query, cookies)
+
+    [event] = _auth_events(json_logs)
+    assert event["event"] == "login_failed"
+    assert event["level"] == "WARNING"
+    assert event["reason"] == reason
+
+
+def test_an_oidc_failure_logs_the_underlying_error_class(client, json_logs, monkeypatch):
+    import jwt
+
+    def expired(id_token, nonce):
+        try:
+            raise jwt.ExpiredSignatureError("Signature has expired")
+        except jwt.PyJWTError as exc:
+            raise OidcError(f"id_token verification failed: {exc}") from exc
+
+    monkeypatch.setattr(main, "verify_id_token", expired)
+
+    _callback(client, "code=abc&state=expected-state")
+
+    [event] = _auth_events(json_logs)
+    assert event["reason"] == "oidc_error:ExpiredSignatureError"
+
+
+def test_an_oidc_failure_without_a_cause_logs_its_fixed_message(
+    client, json_logs, monkeypatch
+):
+    def mismatch(id_token, nonce):
+        raise OidcError("id_token nonce did not match the login attempt")
+
+    monkeypatch.setattr(main, "verify_id_token", mismatch)
+
+    _callback(client, "code=abc&state=expected-state")
+
+    [event] = _auth_events(json_logs)
+    assert event["reason"] == "oidc_error:id_token nonce did not match the login attempt"

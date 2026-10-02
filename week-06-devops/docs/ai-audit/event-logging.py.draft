@@ -1,0 +1,35 @@
+# --- main.py --------------------------------------------------------------
+auth_logger = logging.getLogger("sweng861.auth")
+
+
+def _login_failed(reason: str) -> RedirectResponse:
+    auth_logger.warning("login failed", extra={"event": "login_failed", "reason": reason})
+    return _redirect_to_login_page(error=LOGIN_FAILED)
+
+# in callback():
+    if error or not code or not state:
+        return _login_failed("provider_error")
+    ...
+    if not cookie_state or not nonce or not code_verifier:
+        return _login_failed("missing_cookies")
+    if not secrets.compare_digest(state, cookie_state):
+        return _login_failed("state_mismatch")
+    try:
+        ...
+    except OidcError as exc:
+        return _login_failed(f"oidc_error:{type(exc).__name__}")
+
+    user = upsert_user(db, identity)
+    auth_logger.info("login succeeded", extra={"event": "login_succeeded", "user_id": user.id})
+
+# --- coverages.py create_coverage, after the commit -------------------------
+    logger.info(
+        "coverage created",
+        extra={"event": "coverage_created", "coverage_id": coverage.id, "owner_id": user.id},
+    )
+
+# --- errors.py handle_unexpected_error ----------------------------------------
+    logger.exception(
+        "unhandled error incident=%s %s %s", incident, request.method, request.url.path,
+        extra={"event": "unexpected_error", "incident": incident},
+    )

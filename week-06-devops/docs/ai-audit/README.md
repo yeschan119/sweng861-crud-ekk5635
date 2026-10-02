@@ -10,3 +10,7 @@ The reviewed version lives at the path in the table; compare the two with `diff 
 | `ci.yml.draft` | `.github/workflows/ci.yml` (repository root) | 2026-10-02 | Issue #77: a backend CI job that runs ruff and pytest with coverage against a PostgreSQL service |
 | `ci-frontend-job.yml.draft` | `frontend` job in `.github/workflows/ci.yml` | 2026-10-02 | Issue #77: a frontend CI job that runs npm ci, lint, test:coverage and build |
 | `ci-package-job.yml.draft` | `package` job in `.github/workflows/ci.yml` | 2026-10-02 | Issue #77: build the backend image tagged with the commit SHA and `week6` after the test jobs pass |
+| `logging_setup.py.draft` | `backend/logging_setup.py` | 2026-10-02 | Issue #80: a JSON log formatter that tags each record with the request ID from a context variable |
+| `request_logging.py.draft` | `backend/request_logging.py` | 2026-10-02 | Issue #80: middleware that assigns or propagates a request ID and logs one JSON line per request |
+| `nginx-log-format.conf.draft` | `log_format no_query` in `backend/gateway/nginx.conf` | 2026-10-02 | Issue #80: a gateway access log format that leaves the query string out |
+| `event-logging.py.draft` | `_login_failed` and the login events in `backend/main.py`, `coverage_created` in `backend/coverages.py`, `unexpected_error` in `backend/errors.py` | 2026-10-02 | Issue #80: log login success and failure, coverage creation and unexpected errors as structured events |

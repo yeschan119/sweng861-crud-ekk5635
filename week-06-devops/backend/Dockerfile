@@ -80,4 +80,5 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
 # started twice safely - and an entrypoint that migrated would put that back,
 # one layer down. Compose runs the migration once, in its own service, before
 # this one starts.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# The request middleware writes the access line as JSON, without the query string.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]

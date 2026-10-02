@@ -67,6 +67,21 @@ def test_create_returns_201_and_the_stored_row(api, owner_token):
 
 
 @needs_db
+def test_create_logs_the_new_id_under_the_request_id(api, owner_token, json_logs):
+    import json
+
+    response = api.post(
+        "/api/coverages", json=APPLE, headers={**auth(owner_token), "X-Request-ID": "trace-c1"}
+    )
+
+    entries = [json.loads(line) for line in json_logs]
+    [created] = [e for e in entries if e.get("event") == "coverage_created"]
+    [request] = [e for e in entries if e.get("event") == "request"]
+    assert created["coverage_id"] == response.json()["id"]
+    assert created["request_id"] == request["request_id"] == "trace-c1"
+
+
+@needs_db
 def test_create_never_returns_owner_id(api, owner_token):
     """The response model has no owner_id, and that is worth pinning.
 

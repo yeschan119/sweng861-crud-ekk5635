@@ -7,6 +7,7 @@ coverages resource, the SEC EDGAR client, and global error handling on top.
 
 import base64
 import hashlib
+import logging
 import secrets
 from urllib.parse import urlencode
 
@@ -21,6 +22,8 @@ from financials import router as financials_router
 from db import get_db
 from errors import install_error_handlers
 from health import router as health_router
+from logging_setup import configure_logging
+from request_logging import RequestLoggingMiddleware
 from ratelimit import limit_login
 from oidc import (
     OidcError,
@@ -56,6 +59,11 @@ LOGIN_PAGE_PATH = "/login"
 # failure shares it.
 LOGIN_FAILED = "login_failed"
 
+auth_logger = logging.getLogger("sweng861.auth")
+
+
+# Before the app exists, so every record from here on is a JSON line.
+configure_logging()
 
 # No startup hook creates the schema: `alembic upgrade head` owns it, and an
 # application that alters tables as it boots cannot be deployed twice safely.
@@ -73,6 +81,7 @@ app.include_router(admin_router)
 # route Starlette could not match, a body that failed validation, or a bug -
 # leaves through errors.py in one shape. See that module for why.
 install_error_handlers(app)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.get("/auth/login", dependencies=[Depends(limit_login)])
@@ -155,6 +164,12 @@ def _redirect_to_login_page(**fragment: str) -> RedirectResponse:
     return RedirectResponse(url, status_code=status.HTTP_302_FOUND)
 
 
+def _login_failed(reason: str) -> RedirectResponse:
+    """The one answer the client gets; the reason stays in the server log."""
+    auth_logger.warning("login failed", extra={"event": "login_failed", "reason": reason})
+    return _redirect_to_login_page(error=LOGIN_FAILED)
+
+
 @app.get("/auth/callback", dependencies=[Depends(limit_login)])
 def callback(
     request: Request,
@@ -183,7 +198,7 @@ def callback(
     """
     # The user declined consent, or Google rejected the request.
     if error or not code or not state:
-        return _redirect_to_login_page(error=LOGIN_FAILED)
+        return _login_failed("provider_error")
 
     cookie_state = request.cookies.get(STATE_COOKIE)
     nonce = request.cookies.get(NONCE_COOKIE)
@@ -191,20 +206,21 @@ def callback(
     if not cookie_state or not nonce or not code_verifier:
         # No cookies means this callback did not start at /auth/login in this
         # browser - or it sat past the ten-minute window.
-        return _redirect_to_login_page(error=LOGIN_FAILED)
+        return _login_failed("missing_cookies")
 
     if not secrets.compare_digest(state, cookie_state):
-        return _redirect_to_login_page(error=LOGIN_FAILED)
+        return _login_failed("state_mismatch")
 
     try:
         google_tokens = exchange_code_for_tokens(code, code_verifier)
         identity = verify_id_token(google_tokens["id_token"], nonce)
-    except OidcError:
-        # TODO(week 6): log the OidcError detail through the observability
-        # stack. It must not travel to the client.
-        return _redirect_to_login_page(error=LOGIN_FAILED)
+    except OidcError as exc:
+        # The underlying error's class (expired, bad signature, HTTP 400), never its text.
+        cause = type(exc.__cause__).__name__ if exc.__cause__ else str(exc)
+        return _login_failed(f"oidc_error:{cause}")
 
     user = upsert_user(db, identity)
+    auth_logger.info("login succeeded", extra={"event": "login_succeeded", "user_id": user.id})
 
     # Only the token. Its type is always bearer, and the frontend learns that
     # it expired from the 401 the API answers with, so neither travels.

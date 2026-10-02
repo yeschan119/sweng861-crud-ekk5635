@@ -146,12 +146,13 @@ async def handle_unexpected_error(request: Request, exc: Exception) -> JSONRespo
     returned incident 3f2a..." a searchable report rather than a guess, without
     the response itself explaining how the service is built.
 
-    Starlette re-raises after this handler runs, so the ASGI server prints the
-    traceback a second time. Ours is the copy that carries the id.
+    In the app the request middleware calls this directly, so the line also
+    carries the request ID and the error is not re-raised to the ASGI server.
     """
     incident = uuid.uuid4().hex[:12]
     logger.exception(
-        "unhandled error incident=%s %s %s", incident, request.method, request.url.path
+        "unhandled error incident=%s %s %s", incident, request.method, request.url.path,
+        extra={"event": "unexpected_error", "incident": incident},
     )
     return error_response(
         HTTPStatus.INTERNAL_SERVER_ERROR,

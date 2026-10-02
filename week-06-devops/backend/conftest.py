@@ -275,3 +275,32 @@ def other_token(db_session):
     db_session.add(stranger)
     db_session.commit()
     return issue_session_token(stranger)
+
+
+@pytest.fixture
+def json_logs():
+    """Every log line written during the test, formatted as stdout would get it.
+    Formatted at emit time: the request ID's context variable is gone by the time caplog is read."""
+    import logging
+
+    from logging_setup import JsonFormatter
+
+    class _Collect(logging.Handler):
+        def __init__(self):
+            super().__init__(level=logging.DEBUG)
+            self.setFormatter(JsonFormatter())
+            self.lines: list[str] = []
+
+        def emit(self, record):
+            self.lines.append(self.format(record))
+
+    handler = _Collect()
+    root = logging.getLogger()
+    saved_level = root.level
+    root.addHandler(handler)
+    root.setLevel(logging.DEBUG)
+    try:
+        yield handler.lines
+    finally:
+        root.removeHandler(handler)
+        root.setLevel(saved_level)

@@ -6,6 +6,7 @@ That is the whole of the multi-tenancy defence: there is no code path in which
 a value from the request body reaches owner_id.
 """
 
+import logging
 from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,6 +18,8 @@ from db import get_db
 from models import Coverage
 from schemas import CoverageCreate, CoverageRead, CoverageUpdate
 from security import AuthenticatedUser, require_auth
+
+logger = logging.getLogger("sweng861.coverages")
 
 router = APIRouter(prefix="/api/coverages", tags=["coverages"])
 
@@ -58,6 +61,10 @@ def create_coverage(
         raise
 
     db.refresh(coverage)
+    logger.info(
+        "coverage created",
+        extra={"event": "coverage_created", "coverage_id": coverage.id, "owner_id": user.id},
+    )
     return coverage
 
 

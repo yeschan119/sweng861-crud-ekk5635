@@ -1,0 +1,171 @@
+# Runbook: ApiHighErrorRate
+
+**Alert:** more than 7.2% of `/api/*` requests ended in 5xx over 5 minutes, at more than
+0.1 requests per second, for 2 minutes. That spends the 0.5% error budget of the
+availability SLO (≥ 99.5% non-5xx over 7 days) 14.4 times too fast.
+**Severity:** page.
+
+## 1. Confirm the symptom
+
+Open Grafana at http://127.0.0.1:3000, dashboard *SWENG 861 · API*.
+
+- **SLO · API availability** is red or falling.
+- **Error rate: 4xx vs 5xx**: the 5xx line has risen. If only the 4xx line moved, this alert should not have fired, so check the rule.
+- **Request rate by route**: find which route the failures are on.
+
+## 2. Tell the API failing from a dependency failing
+
+The status code tells you who failed. Run these from `week-06-devops/backend`:
+
+```bash
+docker compose logs api --since 15m --no-log-prefix \
+  | grep '"event": "request"' | grep -E '"status": 5[0-9][0-9]' | tail -20
+```
+
+| What you see | Likely cause |
+|---|---|
+| `500` on most `/api/coverages*` routes, with `unexpected_error` lines | The database is unreachable, or a bug |
+| `503` or `502` only on `/api/coverages/{coverage_id}/financials`, with `upstream failure` lines | SEC EDGAR is down or slow. This service is working |
+| `500` only on one route, after a deploy | A regression in that route |
+
+Take an `incident` id from a 500 response or log line and read its traceback:
+
+```bash
+docker compose logs api --no-log-prefix | grep '<incident id>'
+```
+
+## 3. Check the database
+
+```bash
+docker compose ps db                      # expect "healthy"
+curl -s http://127.0.0.1:8000/health      # {"status":"UP","db":"UP"} when reachable
+```
+
+## 4. Mitigate
+
+| Cause | Action |
+|---|---|
+| Database stopped | `docker compose start db`, then confirm `/health` reports `db: UP` |
+| Database paused or hung | `docker compose restart db` |
+| SEC EDGAR outage | Nothing to restart. The API already answers 503 with `Retry-After`. Record the window; see the note below |
+| Regression after a deploy | Roll back to the previous image tag (`sweng861-week6-backend:<previous sha>`) and recreate the API: `docker compose up -d api` |
+
+The alert resolves by itself once the 5-minute ratio drops back under 7.2%.
+
+## 5. Afterwards
+
+Record the following:
+
+- the start and end time, taken from the error rate panel;
+- the routes affected;
+- the cause, with one `incident` id and one `request_id`;
+- an estimate of the error budget spent.
+
+If an SEC EDGAR outage caused it, note that upstream 5xx count against this SLO today. Consider whether the SLI should leave out `502` and `503` from the financials route.
+# Runbook: CoveragesLatencyHigh
+
+**Alert:** the p95 latency of `GET /api/coverages` was above 500 ms over 5 minutes, for
+5 minutes. The latency SLO is p95 ≤ 500 ms over 7 days.
+**Severity:** ticket. Users get a slower list, not errors.
+
+## 1. Confirm the symptom
+
+Open Grafana, dashboard *SWENG 861 · API*, and check these panels:
+
+- **SLO · GET /api/coverages p95** is red.
+- **p95 latency by route**: see whether only `/api/coverages` is slow, or every route is.
+- **Error rate: 4xx vs 5xx**: see whether 5xx follow the latency. They usually do when the database stops answering.
+
+## 2. Find where the time goes
+
+`GET /api/coverages` reads one table, scoped to the caller. It calls nothing external, so a slow list means a slow database or a busy API process. Run these from `week-06-devops/backend`:
+
+```bash
+# Slowest recent list requests
+docker compose logs api --since 15m --no-log-prefix \
+  | grep '"path": "/api/coverages"' | grep '"method": "GET"' \
+  | python3 -c 'import sys,json; r=sorted((json.loads(l) for l in sys.stdin), key=lambda e: -e["duration_ms"]); [print(e["duration_ms"], e["status"], e["request_id"]) for e in r[:10]]'
+
+docker compose ps db          # "healthy"?
+docker stats --no-stream      # CPU or memory pressure on api or db?
+```
+
+| What you see | Likely cause |
+|---|---|
+| Every route is slow, and the db is unhealthy or paused | The database |
+| Only `/api/coverages` is slow, and duration grows with the account's size | Missing index, or a large result set |
+| The API container is at 100% CPU | Load beyond one replica |
+
+## 3. Mitigate
+
+| Cause | Action |
+|---|---|
+| Database paused or hung | `docker compose restart db` |
+| Load | Add a replica, `docker compose up -d --scale api=2`. The gateway balances across it, and Prometheus scrapes both |
+| Query or result size | Open an issue with the slow `request_id` lines. A fix is a code change |
+
+## 4. Afterwards
+
+Record the following:
+
+- the window;
+- the peak p95, from the panel;
+- the cause;
+- whether 5xx followed. If they did, the availability SLO was spent too.
+# Runbook: LoginServiceFailures
+
+**Alert:** more than 14% of eligible logins failed for a server-side reason over 30
+minutes, with at least 5 attempts, for 5 minutes. The login SLO is ≥ 99% over 7 days.
+
+A failure is server-side when one of these happens:
+
+- the token exchange with Google fails;
+- verification of Google's id_token fails;
+- the callback crashes with a 5xx.
+
+Declined consent, expired login cookies and forged state are the caller's doing. They are not counted.
+**Severity:** page. Nobody can sign in.
+
+## 1. Confirm the symptom
+
+Open Grafana, dashboard *SWENG 861 · API*, and check these panels:
+
+- **SLO · Login success rate** is red.
+- **Logins by outcome**: `service_error` is rising and `succeeded` is falling.
+  - A `client_error` spike with `succeeded` steady is not this alert. It is forged or replayed callbacks, so look at rate limiting instead.
+
+## 2. Read the reason
+
+Every failed login is logged with the check that refused it. Run this from `week-06-devops/backend`:
+
+```bash
+docker compose logs api --since 30m --no-log-prefix \
+  | grep '"event": "login_failed"' | grep -o '"reason": "[^"]*"' | sort | uniq -c
+```
+
+| Reason | Likely cause |
+|---|---|
+| `oidc_error:HTTPStatusError` | Google refused the token exchange. Usually the client secret was rotated or revoked, or the redirect URI no longer matches the OAuth client |
+| `oidc_error:ConnectError` or `ReadTimeout` | Google cannot be reached from the API container (network or DNS) |
+| `oidc_error:ExpiredSignatureError` or `ImmatureSignatureError` | The host clock has drifted |
+| `oidc_error:InvalidAudienceError` | `GOOGLE_CLIENT_ID` does not match the OAuth client the browser used |
+| 5xx on `/auth/callback` with `unexpected_error` | The callback crashed, usually because the database is down while the user row is saved. Follow the incident id |
+
+## 3. Mitigate
+
+| Cause | Action |
+|---|---|
+| Rotated or revoked secret | Put the current secret in `backend/.env` (never in a commit), then `docker compose up -d api` |
+| Redirect URI or client id mismatch | Fix the OAuth client in Google Cloud Console, or `.env`, so they match `GOOGLE_REDIRECT_URI` |
+| Clock drift | Resync the host clock; containers take it from the host |
+| Database down | See [ApiHighErrorRate](api-high-error-rate.md), step 3 |
+| Google outage | Nothing to restart. Record the window |
+
+## 4. Afterwards
+
+Record the following:
+
+- the window;
+- the reason counts from step 2;
+- the cause;
+- how many users could not sign in. Use the `succeeded` drop on the panel against the usual rate.

@@ -1,0 +1,156 @@
+# promtool test rules: each alert fires on a real breach and stays quiet just below it,
+# on thin traffic, and when the failing series does not exist yet.
+rule_files:
+  - ../rules/slo-alerts.yml
+
+evaluation_interval: 15s
+
+tests:
+  # --- ApiHighErrorRate: 5xx ratio > 7.2% (14.4x the 0.5% budget) on > 0.1 req/s -------
+  - name: 10% of /api requests fail at 1 req/s
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="200"}'
+        values: '0+54x20'
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="500"}'
+        values: '0+6x20'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ApiHighErrorRate
+        exp_alerts: []          # pending: true since 1m, `for: 2m` has not elapsed
+      - eval_time: 4m
+        alertname: ApiHighErrorRate
+        exp_alerts:
+          - exp_labels: {severity: page, slo: api-availability}
+            exp_annotations:
+              summary: "API 5xx ratio is 10% over 5 minutes"
+              description: "More than 14.4x the 0.5% error budget of the availability SLO is being spent."
+              runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/api-high-error-rate.md"
+
+  - name: 7% of /api requests fail, under the burn-rate threshold
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="200"}'
+        values: '0+93x20'
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="500"}'
+        values: '0+7x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ApiHighErrorRate
+        exp_alerts: []
+
+  - name: one failure out of two requests a minute is too little traffic to page on
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="200"}'
+        values: '0+1x20'
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="500"}'
+        values: '0+1x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ApiHighErrorRate
+        exp_alerts: []
+
+  - name: no 5xx series exists at all
+    interval: 1m
+    input_series:
+      - series: 'http_requests_total{route="/api/coverages",method="GET",status="200"}'
+        values: '0+60x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: ApiHighErrorRate
+        exp_alerts: []
+
+  # --- CoveragesLatencyHigh: GET /api/coverages p95 > 500 ms for 5m -----------------------
+  - name: every GET /api/coverages takes between 0.5 and 1 s
+    interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{route="/api/coverages",method="GET",le="0.5"}'
+        values: '0+0x20'
+      - series: 'http_request_duration_seconds_bucket{route="/api/coverages",method="GET",le="1.0"}'
+        values: '0+30x20'
+      - series: 'http_request_duration_seconds_bucket{route="/api/coverages",method="GET",le="+Inf"}'
+        values: '0+30x20'
+      - series: 'http_request_duration_seconds_count{route="/api/coverages",method="GET"}'
+        values: '0+30x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: CoveragesLatencyHigh
+        exp_alerts: []          # pending: true since 1m, `for: 5m` has not elapsed
+      - eval_time: 7m
+        alertname: CoveragesLatencyHigh
+        exp_alerts:
+          - exp_labels: {severity: ticket, slo: coverages-latency}
+            exp_annotations:
+              summary: "GET /api/coverages p95 is 975ms"
+              description: "The p95 latency SLO is 500 ms."
+              runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/coverages-latency-high.md"
+
+  - name: every GET /api/coverages finishes under 0.5 s
+    interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{route="/api/coverages",method="GET",le="0.5"}'
+        values: '0+30x20'
+      - series: 'http_request_duration_seconds_bucket{route="/api/coverages",method="GET",le="1.0"}'
+        values: '0+30x20'
+      - series: 'http_request_duration_seconds_bucket{route="/api/coverages",method="GET",le="+Inf"}'
+        values: '0+30x20'
+      - series: 'http_request_duration_seconds_count{route="/api/coverages",method="GET"}'
+        values: '0+30x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: CoveragesLatencyHigh
+        exp_alerts: []
+
+  # --- LoginServiceFailures: > 14% of eligible logins fail server-side, >= 5 attempts ----
+  - name: a third of logins fail on the token exchange
+    interval: 1m
+    input_series:
+      - series: 'logins_total{outcome="succeeded"}'
+        values: '0+2x40'
+      - series: 'logins_total{outcome="service_error"}'
+        values: '0+1x40'
+      - series: 'logins_total{outcome="client_error"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LoginServiceFailures
+        exp_alerts:
+          - exp_labels: {severity: page, slo: login-success}
+            exp_annotations:
+              summary: "33.33% of logins failed for a server-side reason over 30 minutes"
+              description: "More than 14x the 1% error budget of the login SLO is being spent."
+              runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/login-service-failures.md"
+
+  - name: many declined consents are the callers, not the service
+    interval: 1m
+    input_series:
+      - series: 'logins_total{outcome="succeeded"}'
+        values: '0+2x40'
+      - series: 'logins_total{outcome="service_error"}'
+        values: '0+0x40'
+      - series: 'logins_total{outcome="client_error"}'
+        values: '0+20x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LoginServiceFailures
+        exp_alerts: []
+
+  - name: every callback crashes with a 500 before a login is counted
+    interval: 1m
+    input_series:
+      - series: 'logins_total{outcome="succeeded"}'
+        values: '0+0x40'
+      - series: 'logins_total{outcome="service_error"}'
+        values: '0+0x40'
+      - series: 'http_requests_total{route="/auth/callback",method="GET",status="500"}'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LoginServiceFailures
+        exp_alerts:
+          - exp_labels: {severity: page, slo: login-success}
+            exp_annotations:
+              summary: "100% of logins failed for a server-side reason over 30 minutes"
+              description: "More than 14x the 1% error budget of the login SLO is being spent."
+              runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/login-service-failures.md"

@@ -19,3 +19,6 @@ The reviewed version lives at the path in the table; compare the two with `diff 
 | `prometheus.yml.draft` | `observability/prometheus/prometheus.yml` and the `prometheus` service in `backend/docker-compose.yml` | 2026-10-02 | Issue #81: scrape the API from inside the compose network |
 | `grafana.yml.draft` | `observability/grafana/provisioning/` and the `grafana` service in `backend/docker-compose.yml` | 2026-10-02 | Issue #81: Grafana with the data source and dashboard provisioned from files, read-only |
 | `grafana-dashboard.json.draft` | `observability/grafana/dashboards/api.json` | 2026-10-02 | Issue #81: request rate, 4xx/5xx error rate, p95 latency, coverages created, logins, and three SLO panels |
+| `slo-alerts.yml.draft` | `observability/prometheus/rules/slo-alerts.yml` | 2026-10-02 | Issue #82: one Prometheus alert per SLO, with burn-rate thresholds and runbook links |
+| `ci-alert-rules-job.yml.draft` | `alert-rules` job in `.github/workflows/ci.yml` | 2026-10-02 | Issue #82: check the Prometheus config and rules, and run the promtool rule tests, in CI |
+| `runbooks.md.draft` | `docs/runbooks/*.md` (three files, concatenated in the draft) | 2026-10-02 | Issue #82: one runbook per alert: symptom, panels, causes, mitigation, follow-up |

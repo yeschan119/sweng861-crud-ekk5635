@@ -1,0 +1,57 @@
+# One alert per SLO in the README. Thresholds are a 14.4x burn rate of each error budget
+# (the budget gone in about two days); windows are short so the demo stack can show one fire.
+groups:
+  - name: slo-alerts
+    rules:
+      - alert: ApiHighErrorRate
+        # 0.5% budget x 14.4 = 7.2%. The rate floor keeps one failure in two requests from paging.
+        expr: |
+          sum(rate(http_requests_total{route=~"/api/.*",status=~"5.."}[5m]))
+            / sum(rate(http_requests_total{route=~"/api/.*"}[5m])) > 0.072
+          and sum(rate(http_requests_total{route=~"/api/.*"}[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: page
+          slo: api-availability
+        annotations:
+          summary: "API 5xx ratio is {{ $value | humanizePercentage }} over 5 minutes"
+          description: "More than 14.4x the 0.5% error budget of the availability SLO is being spent."
+          runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/api-high-error-rate.md"
+
+      - alert: CoveragesLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{route="/api/coverages",method="GET"}[5m]))) > 0.5
+          and sum(rate(http_request_duration_seconds_count{route="/api/coverages",method="GET"}[5m])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+          slo: coverages-latency
+        annotations:
+          summary: "GET /api/coverages p95 is {{ $value | humanizeDuration }}"
+          description: "The p95 latency SLO is 500 ms."
+          runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/coverages-latency-high.md"
+
+      - alert: LoginServiceFailures
+        # 1% budget x 14.4, rounded to 14%. A callback that crashes with a 500 never reaches
+        # logins_total, so the 5xx are in the floor too: otherwise a total outage stays quiet.
+        expr: |
+          (
+            sum(increase(logins_total{outcome="service_error"}[30m]))
+            + (sum(increase(http_requests_total{route="/auth/callback",status=~"5.."}[30m])) or vector(0))
+          )
+          / (
+            sum(increase(logins_total{outcome=~"succeeded|service_error"}[30m]))
+            + (sum(increase(http_requests_total{route="/auth/callback",status=~"5.."}[30m])) or vector(0))
+          ) > 0.14
+          and (
+            sum(increase(logins_total{outcome=~"succeeded|service_error"}[30m]))
+            + (sum(increase(http_requests_total{route="/auth/callback",status=~"5.."}[30m])) or vector(0))
+          ) >= 5
+        for: 5m
+        labels:
+          severity: page
+          slo: login-success
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of logins failed for a server-side reason over 30 minutes"
+          description: "More than 14x the 1% error budget of the login SLO is being spent."
+          runbook_url: "https://github.com/psu-edu/sweng861-crud-ekk5635/blob/main/week-06-devops/docs/runbooks/login-service-failures.md"

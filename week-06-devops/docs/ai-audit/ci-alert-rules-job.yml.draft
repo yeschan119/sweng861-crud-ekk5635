@@ -1,0 +1,13 @@
+  alert-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check and test the alert rules
+        run: |
+          docker run --rm -v "$PWD/week-06-devops/observability/prometheus:/p:ro" \
+            --entrypoint promtool prom/prometheus:v3.13.4 check rules /p/rules/slo-alerts.yml
+          docker run --rm -v "$PWD/week-06-devops/observability/prometheus:/p:ro" -w /p/tests \
+            --entrypoint promtool prom/prometheus:v3.13.4 test rules slo-alerts.test.yml

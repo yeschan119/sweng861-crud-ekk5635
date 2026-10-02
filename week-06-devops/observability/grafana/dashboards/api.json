@@ -2,7 +2,7 @@
   "uid": "sweng861-api",
   "title": "SWENG 861 · API",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 3,
   "editable": false,
   "time": {
     "from": "now-1h",
@@ -44,7 +44,30 @@
                 "value": 0.99
               }
             ]
-          }
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No logins",
+                  "color": "#8e8e8e"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "No logins",
+                  "color": "#8e8e8e"
+                }
+              }
+            }
+          ],
+          "noValue": "No logins"
         },
         "overrides": []
       },
@@ -98,7 +121,30 @@
                 "value": 0.995
               }
             ]
-          }
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No API traffic",
+                  "color": "#8e8e8e"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "No API traffic",
+                  "color": "#8e8e8e"
+                }
+              }
+            }
+          ],
+          "noValue": "No API traffic"
         },
         "overrides": []
       },
@@ -152,7 +198,30 @@
                 "value": 0.5
               }
             ]
-          }
+          },
+          "mappings": [
+            {
+              "type": "special",
+              "options": {
+                "match": "nan",
+                "result": {
+                  "text": "No requests",
+                  "color": "#8e8e8e"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "No requests",
+                  "color": "#8e8e8e"
+                }
+              }
+            }
+          ],
+          "noValue": "No requests"
         },
         "overrides": []
       },

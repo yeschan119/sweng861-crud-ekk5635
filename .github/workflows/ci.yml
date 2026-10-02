@@ -100,3 +100,28 @@ jobs:
           exit 1
       - name: Check the image runs as a non-root user
         run: test "$(docker run --rm --entrypoint id "$IMAGE:$GITHUB_SHA" -u)" != "0"
+
+  alert-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # The image compose runs, so promtool here and Prometheus there read rules the same way.
+      PROMETHEUS_IMAGE: prom/prometheus:v3.13.4
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Mounted where compose mounts it, so the rule_files glob is checked too: a glob that
+      # matches nothing still passes promtool, with zero rules loaded.
+      - name: Check the Prometheus config and every rule file it loads
+        run: |
+          set -o pipefail  # without it, tee's exit status would hide a promtool failure
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/week-06-devops/observability/prometheus:/etc/prometheus:ro" \
+            "$PROMETHEUS_IMAGE" check config /etc/prometheus/prometheus.yml | tee check.log
+          grep -Eq "SUCCESS: [1-9][0-9]* rule files found" check.log
+      - name: Run the alert rule tests
+        run: |
+          docker run --rm --entrypoint sh -w /etc/prometheus/tests \
+            -v "$PWD/week-06-devops/observability/prometheus:/etc/prometheus:ro" \
+            "$PROMETHEUS_IMAGE" -c 'promtool test rules *.test.yml'

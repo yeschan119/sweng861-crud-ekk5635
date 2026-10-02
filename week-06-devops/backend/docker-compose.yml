@@ -132,6 +132,7 @@ services:
       - --storage.tsdb.retention.time=8d
     volumes:
       - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/rules:/etc/prometheus/rules:ro
       - promdata-week6:/prometheus
     ports:
       # Loopback only: the query API answers anyone who can reach it.

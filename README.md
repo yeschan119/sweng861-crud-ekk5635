@@ -140,6 +140,44 @@ whole expression would return no data rather than 100%.
 Screenshots of the dashboard with data from the running stack are in
 `week-06-devops/docs/screenshots/`.
 
+### Alerts
+
+Prometheus evaluates one alert per SLO, from
+`week-06-devops/observability/prometheus/rules/slo-alerts.yml`. Each threshold is a
+14.4x burn rate of the SLO's error budget: at that rate, a 7-day budget is gone in
+about two days.
+
+| Alert | Fires when | For | Severity | Runbook |
+|---|---|---|---|---|
+| `ApiHighErrorRate` | `/api/*` 5xx over 5 min > 7.2% (0.5% × 14.4), at > 0.1 req/s | 2m | page | [api-high-error-rate](week-06-devops/docs/runbooks/api-high-error-rate.md) |
+| `CoveragesLatencyHigh` | `GET /api/coverages` p95 over 5 min > 500 ms | 5m | ticket | [coverages-latency-high](week-06-devops/docs/runbooks/coverages-latency-high.md) |
+| `LoginServiceFailures` | server-side login failures over 30 min > 14% (1% × 14.4), with ≥ 5 attempts | 5m | page | [login-service-failures](week-06-devops/docs/runbooks/login-service-failures.md) |
+
+- **Thin traffic.** Each rule has a traffic floor, so one failure out of two requests cannot page.
+- **Short windows.** The windows are shorter than a production 1-hour fast-burn window, so the demo stack can show an alert fire within minutes.
+- **No Alertmanager.** The stack has no Alertmanager and nowhere to send a page. Alert state is visible at http://127.0.0.1:9090/alerts and in the `ALERTS` series. A deployment would route `severity="page"` to an on-call channel.
+
+`promtool test rules` runs in CI (job `alert-rules`) against
+`observability/prometheus/tests/slo-alerts.test.yml`. Every alert is tested two ways:
+
+- **It fires** on a breach, and the test also checks its summary and runbook link.
+- **It stays quiet** just under the threshold, on thin traffic, and when the 5xx series does not exist yet.
+
+The same job fails if `prometheus.yml` loads no rule file. A wrong glob would otherwise pass promtool and start Prometheus with no alerts.
+
+**Drill, 2 October 2026.** The steps were:
+
+1. `docker compose stop db` while authenticated `GET /api/coverages` ran at 5 requests a second.
+2. `ApiHighErrorRate` went pending 21 s later and fired 2 minutes after that, at an 85% 5xx ratio.
+3. After `docker compose start db` it resolved once the 5-minute window had drained.
+
+Screenshots `10` to `13` in `week-06-devops/docs/screenshots/` show the drill:
+
+- the alert firing, with its runbook link;
+- the dashboard during the incident;
+- the `ALERTS` series going pending, then firing, then gone;
+- all three rules inactive afterwards.
+
 ## Week 1 — Health API
 
 `week-01-setup/backend/`: `GET /health` answers `{"status": "ok"}` and

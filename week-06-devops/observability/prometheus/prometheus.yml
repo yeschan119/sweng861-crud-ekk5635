@@ -1,0 +1,13 @@
+# Scrapes the API on the compose network; /metrics is not reachable through the gateway.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: api
+    metrics_path: /metrics
+    # DNS lists every api replica (`up --scale api=2`); a static api:8000 would hit one at random.
+    dns_sd_configs:
+      - names: [api]
+        type: A
+        port: 8000

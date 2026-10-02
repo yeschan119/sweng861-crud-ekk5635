@@ -92,6 +92,54 @@ docker build -f backend/Dockerfile -t sweng861-week6-backend:week6 .
 A green run and two deliberately failing ones (a broken assertion, and the
 coverage gate raised to 99%) are in `week-06-devops/docs/screenshots/`.
 
+## Metrics, dashboard and SLOs
+
+`docker compose up` in `week-06-devops/backend` also starts Prometheus and
+Grafana. The dashboard is loaded from files at startup; nothing is set up by hand.
+
+| Service | URL | Notes |
+|---|---|---|
+| Grafana | http://127.0.0.1:3000 | dashboard *SWENG 861 · API*; anonymous read-only, no login form, no basic auth |
+| Prometheus | http://127.0.0.1:9090 | scrapes every API replica at `api:8000/metrics` every 15 s; keeps 8 days |
+
+Both ports are bound to loopback only. `/metrics` is served inside the compose
+network, and the gateway answers 404 for any path that starts with it.
+
+The API exports these metrics (`week-06-devops/backend/metrics.py`):
+
+| Metric | Labels | Counts |
+|---|---|---|
+| `http_requests_total` | `method`, `route`, `status` | every request; `route` is the template (`/api/coverages/{coverage_id}`), unmatched paths share `unmatched`, unknown methods share `OTHER` |
+| `http_request_duration_seconds` | `method`, `route` | latency histogram, buckets 0.05 to 2.5 s with 0.5 s as an edge |
+| `coverages_created_total` | | coverages committed to the database (a 409 duplicate is not counted) |
+| `logins_total` | `outcome` | `succeeded`, `client_error` (consent declined, expired cookies, forged state), `service_error` (token exchange or verification failed) |
+
+### SLOs
+
+Each is measured over 7 days. The top row of the dashboard shows the same
+expressions over the selected time range, so set the picker to 7 days to read
+them as the SLO.
+
+| SLI | SLO | PromQL |
+|---|---|---|
+| Login success: successful logins over logins that failed for a reason the service owns. A login the caller abandoned or forged is not the service failing. | ≥ 99% | `sum(increase(logins_total{outcome="succeeded"}[7d])) / (sum(increase(logins_total{outcome=~"succeeded\|service_error"}[7d])) + (sum(increase(http_requests_total{route="/auth/callback",status=~"5.."}[7d])) or vector(0)))` |
+| API availability: `/api/*` requests that did not end in 5xx | ≥ 99.5% | `1 - (sum(increase(http_requests_total{route=~"/api/.*",status=~"5.."}[7d])) or vector(0)) / sum(increase(http_requests_total{route=~"/api/.*"}[7d]))` |
+| Latency: p95 of `GET /api/coverages` | ≤ 500 ms | `histogram_quantile(0.95, sum by (le) (increase(http_request_duration_seconds_bucket{route="/api/coverages",method="GET"}[7d])))` |
+
+`or vector(0)` matters. With no 5xx yet, the 5xx series does not exist and the
+whole expression would return no data rather than 100%.
+
+### Using the dashboard in an incident
+
+1. **Check the top row.** It shows which promise is broken: logins, API errors, or latency.
+2. **Look at error rate, 4xx against 5xx.** A 5xx rise is the service failing. A 4xx rise alone is usually callers or a scan.
+3. **Compare the p95 latency by route.** Latency that climbs before the 5xx points at a slow dependency, either the database or SEC EDGAR.
+4. **Check request rate.** A drop to zero with no errors points at the gateway or the network, not the API.
+5. **Take a route and a time from the panels to the logs.** Every response carries an `X-Request-ID`, and every API log line is JSON with that `request_id`, so one failing request can be followed end to end (`docker compose logs api | grep <id>`).
+
+Screenshots of the dashboard with data from the running stack are in
+`week-06-devops/docs/screenshots/`.
+
 ## Week 1 — Health API
 
 `week-01-setup/backend/`: `GET /health` answers `{"status": "ok"}` and

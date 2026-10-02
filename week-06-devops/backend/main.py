@@ -23,6 +23,7 @@ from db import get_db
 from errors import install_error_handlers
 from health import router as health_router
 from logging_setup import configure_logging
+from metrics import metrics_response, record_login_failure, record_login_success
 from request_logging import RequestLoggingMiddleware
 from ratelimit import limit_login
 from oidc import (
@@ -82,6 +83,12 @@ app.include_router(admin_router)
 # leaves through errors.py in one shape. See that module for why.
 install_error_handlers(app)
 app.add_middleware(RequestLoggingMiddleware)
+
+
+# Scraped by Prometheus inside the compose network; the gateway refuses it from outside.
+@app.get("/metrics", include_in_schema=False)
+def serve_metrics():
+    return metrics_response()
 
 
 @app.get("/auth/login", dependencies=[Depends(limit_login)])
@@ -167,6 +174,7 @@ def _redirect_to_login_page(**fragment: str) -> RedirectResponse:
 def _login_failed(reason: str) -> RedirectResponse:
     """The one answer the client gets; the reason stays in the server log."""
     auth_logger.warning("login failed", extra={"event": "login_failed", "reason": reason})
+    record_login_failure(reason)
     return _redirect_to_login_page(error=LOGIN_FAILED)
 
 
@@ -221,6 +229,7 @@ def callback(
 
     user = upsert_user(db, identity)
     auth_logger.info("login succeeded", extra={"event": "login_succeeded", "user_id": user.id})
+    record_login_success()
 
     # Only the token. Its type is always bearer, and the frontend learns that
     # it expired from the 401 the API answers with, so neither travels.

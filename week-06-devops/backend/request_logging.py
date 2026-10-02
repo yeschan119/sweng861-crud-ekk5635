@@ -11,6 +11,7 @@ from starlette.responses import Response
 
 from errors import handle_unexpected_error
 from logging_setup import request_id_var
+from metrics import observe_request
 
 logger = logging.getLogger("sweng861.request")
 
@@ -38,6 +39,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 # Answered here, not by Starlette's outer handler, so the incident log keeps the ID.
                 response = await handle_unexpected_error(request, exc)
             response.headers[REQUEST_ID_HEADER] = request_id
+            seconds = time.perf_counter() - start
+            # Measured once, so the log line and the latency histogram never disagree.
+            observe_request(request, response.status_code, seconds)
             logger.info(
                 "%s %s %s",
                 request.method,
@@ -49,7 +53,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     # The path only: a query string can carry an OAuth code or state.
                     "path": request.url.path,
                     "status": response.status_code,
-                    "duration_ms": round((time.perf_counter() - start) * 1000, 1),
+                    "duration_ms": round(seconds * 1000, 1),
                 },
             )
             return response

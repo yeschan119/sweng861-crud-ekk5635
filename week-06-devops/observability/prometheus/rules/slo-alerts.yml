@@ -1,5 +1,5 @@
 # One alert per SLO in the README. Thresholds are a 14.4x burn rate of each error budget
-# (the budget gone in about two days); windows are short so the demo stack can show one fire.
+# (a 7-day budget gone in about 12 hours); windows are short so the demo stack can show one fire.
 groups:
   - name: slo-alerts
     rules:

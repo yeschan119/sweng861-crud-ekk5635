@@ -27,3 +27,4 @@ The reviewed version lives at the path in the table; compare the two with `diff 
 | `ci-frontend-image.yml.draft` | frontend steps of the `package` job in `.github/workflows/ci.yml` | 2026-10-03 | Issue #78: build, smoke-test and check the frontend image in CI with the backend tag scheme |
 | `ci-audit-job.yml.draft` | `audit` job in `.github/workflows/ci.yml` | 2026-10-03 | Issue #79: audit backend and frontend dependencies for known vulnerabilities, and fail if a `.env` file is tracked |
 | `ci-trivy-scan.yml.draft` | Trivy step of the `package` job in `.github/workflows/ci.yml` | 2026-10-03 | Issue #79: scan the backend and frontend images with Trivy and fail on fixable HIGH or CRITICAL findings |
+| `Dockerfile-hardening.draft` | `backend/Dockerfile` (pip removal in both stages, `apt-get upgrade` in the runtime stage) | 2026-10-03 | Issue #79: clear the fixable HIGH findings Trivy reports in the backend image |

@@ -1,0 +1,6 @@
+# Stage 1, after `RUN pip install --no-cache-dir -r requirements.txt`:
+RUN pip uninstall -y pip
+
+# Stage 2, after `FROM python:3.14-slim AS runtime`:
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/* \
+    && pip uninstall -y pip

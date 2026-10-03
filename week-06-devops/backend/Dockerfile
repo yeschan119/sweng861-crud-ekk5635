@@ -36,6 +36,8 @@ WORKDIR /app
 # work this image exists to support.
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# The service never installs anything, and pip's vendored urllib3 and msgpack fail the image scan.
+RUN pip uninstall -y pip
 
 # ---------------------------------------------------------------------------
 # Stage 2 - runtime
@@ -49,6 +51,13 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
+
+# Security fixes published since the base image was built; the system pip goes for the same reason as the venv's.
+# The interpreter is named so the line removes the system pip wherever it sits relative to the venv copy.
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/* \
+    && /usr/local/bin/python -m pip uninstall -y pip
 
 # A non-root user, created before anything is copied in. The default is root,
 # and a process that never needs to write outside its own directory has no

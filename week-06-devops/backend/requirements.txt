@@ -6,7 +6,7 @@ uvicorn[standard]==0.52.4
 httpx==0.28.1
 
 # JWT — verifies Google's RS256 id_token and signs this app's own session token
-pyjwt[crypto]==2.13.0
+pyjwt[crypto]==2.15.1
 
 # User persistence in PostgreSQL
 SQLAlchemy==2.0.52

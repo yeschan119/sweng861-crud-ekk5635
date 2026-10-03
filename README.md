@@ -80,7 +80,8 @@ and the runs live there.
 |---|---|---|
 | `backend` | `ruff check .`, then `pytest --cov=.` against a PostgreSQL 17 service container | a lint rule, a test, or coverage under 80% (`.coveragerc`) |
 | `frontend` | `npm ci --ignore-scripts`, `npm run lint`, `npm run test:coverage`, `npm run build` | a lint rule, a test, coverage under 80% (`vitest.config.ts`), or a type error |
-| `package` | after both pass: builds the backend image as `sweng861-week6-backend:<commit SHA>` and `:week6`, starts it, waits for `/health/live`, checks it does not run as root | the build, the start, or a root user |
+| `audit` | `pip-audit`, `npm audit`, and a check for tracked `.env` files ([Security checks](#security-checks-and-secrets)) | a known vulnerability in a dependency, or a committed `.env` |
+| `package` | after the three above pass: builds the backend and frontend images as `sweng861-week6-<side>:<commit SHA>` and `:week6`, smoke-tests both, checks neither runs as root and the frontend carries no Node, then scans both with Trivy | the build, the start, a root user, or a scan finding |
 
 The workflow token is read-only and the image is not pushed to a registry.
 Each step reproduces locally:
@@ -98,6 +99,53 @@ docker build -f backend/Dockerfile -t sweng861-week6-backend:week6 .
 
 A green run and two deliberately failing ones (a broken assertion, and the
 coverage gate raised to 99%) are in `week-06-devops/docs/screenshots/`.
+
+## Security checks and secrets
+
+### Security checks in CI
+
+Each check runs on every push and pull request, and a failure stops the
+images from being built or scanned further.
+
+| Check | Command | Fails when | Deliberately not checked |
+|---|---|---|---|
+| Backend dependencies | `pip-audit -r requirements.txt` (job `audit`) | any known vulnerability, whatever its severity | — |
+| Frontend dependencies | `npm audit --omit=dev --audit-level=high` (job `audit`) | a high or critical advisory in a runtime dependency | dev dependencies; see below |
+| Committed `.env` | `git ls-files` (job `audit`) | `.env` or any `.env.*` other than `.env.example` is tracked | — |
+| Images | Trivy 0.75.0, `--scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed` (job `package`) | a HIGH or CRITICAL vulnerability with a fixed package, or a secret, in either image | findings with no fix published yet |
+
+- **Dev dependencies.** The frontend image holds only the built `dist/`, so dev tooling never runs in production. A full `npm audit --audit-level=high` still runs, report-only. It currently lists `braces` (GHSA-vfj7-8cjw-p6xm, no fixed version yet), which reaches only the ESLint config.
+- **Unfixed findings.** A finding with no patched package cannot be fixed by a rebuild. Skipping it keeps the gate actionable, but those risks are visible only in a local scan without `--ignore-unfixed`.
+- **Image hardening for the scan.** Both images apply OS security updates at build time. The backend image has no `pip`, and the frontend uses a stable Nginx branch. The `package` job also checks that neither image runs as root.
+
+The first runs of these checks failed on real findings. Screenshots `16` to `19` show them:
+
+- PyJWT 2.13.0, fixed by moving to 2.15.1;
+- pip's vendored packages, `libpcre2`, and 42 Alpine packages under the stale `nginx-unprivileged:1.29-alpine` tag.
+
+To reproduce locally:
+
+```bash
+pip install pip-audit==2.10.1 && pip-audit -r week-06-devops/backend/requirements.txt
+cd week-06-devops/frontend && npm audit --omit=dev --audit-level=high
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.75.0 image \
+  --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed sweng861-week6-backend:week6
+```
+
+### Where secrets live
+
+The secrets are `GOOGLE_CLIENT_SECRET`, `SESSION_JWT_SECRET` and
+`POSTGRES_PASSWORD` (inside `DATABASE_URL`). None is in source, in an image, or
+in the front-end bundle.
+
+| Environment | Store | How the app receives them |
+|---|---|---|
+| Local | `week-06-devops/backend/.env`, created from `.env.example`. It is git-ignored, and `.dockerignore` keeps it out of the build context. | `env_file` in `docker-compose.yml`, at container start |
+| CI | No secret is needed today. The PostgreSQL service uses throwaway credentials written in `ci.yml`, for a database that exists only for that job. A real credential, such as a registry token, would go in GitHub Actions secrets as `${{ secrets.NAME }}`. | an `env:` entry in the step that needs it |
+| Production (not deployed) | A cloud secret manager, such as AWS Secrets Manager. | The container platform injects them as environment variables. The image stays the same in every environment. |
+
+`week-06-devops/backend/tests/test_log_secrets.py` checks that no log line
+carries a token, a cookie, an OAuth code, a configured secret or an email.
 
 ## Metrics, dashboard and SLOs
 

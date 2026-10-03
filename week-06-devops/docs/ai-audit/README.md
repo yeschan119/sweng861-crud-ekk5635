@@ -29,3 +29,4 @@ The reviewed version lives at the path in the table; compare the two with `diff 
 | `ci-trivy-scan.yml.draft` | Trivy step of the `package` job in `.github/workflows/ci.yml` | 2026-10-03 | Issue #79: scan the backend and frontend images with Trivy and fail on fixable HIGH or CRITICAL findings |
 | `Dockerfile-hardening.draft` | `backend/Dockerfile` (pip removal in both stages, `apt-get upgrade` in the runtime stage) | 2026-10-03 | Issue #79: clear the fixable HIGH findings Trivy reports in the backend image |
 | `frontend-image-hardening.draft` | runtime stage of `frontend/Dockerfile` | 2026-10-03 | Issue #79: move off the stale Nginx base tag and clear the fixable HIGH findings Trivy reports in the frontend image |
+| `readme-security.md.draft` | "Security checks and secrets" section of `README.md` (repository root) | 2026-10-03 | Issue #79: document the CI security checks and where secrets live locally, in CI and in production |

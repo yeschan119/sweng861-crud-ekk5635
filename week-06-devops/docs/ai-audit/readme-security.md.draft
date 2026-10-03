@@ -1,0 +1,24 @@
+## Security checks and secrets
+
+### Security checks in CI
+
+Every push and pull request runs these checks; any HIGH or CRITICAL finding fails the build.
+
+| Check | Tool | Fails when |
+|---|---|---|
+| Backend dependencies | `pip-audit -r requirements.txt` | any known vulnerability |
+| Frontend dependencies | `npm audit --omit=dev --audit-level=high` | a high or critical advisory in a runtime dependency |
+| Images | Trivy (`--severity HIGH,CRITICAL --ignore-unfixed`) | a fixable HIGH or CRITICAL vulnerability, or a secret, in either image |
+| Committed secrets | `git ls-files` | a `.env` file is tracked |
+
+Both images run as non-root users and contain no secrets.
+
+### Where secrets live
+
+| Environment | Store | How the app gets them |
+|---|---|---|
+| Local | `week-06-devops/backend/.env` (git-ignored, docker-ignored) | `env_file` in `docker-compose.yml` |
+| CI | GitHub Actions secrets (`secrets.*`) | environment variables in the workflow |
+| Production | AWS Secrets Manager | injected as environment variables by the container platform |
+
+No secret is ever committed, baked into an image, or written to a log.

@@ -198,9 +198,10 @@ Screenshots of the dashboard with data from the running stack are in
 ### Alerts
 
 Prometheus evaluates one alert per SLO, from
-`week-06-devops/observability/prometheus/rules/slo-alerts.yml`. Each threshold is a
-14.4x burn rate of the SLO's error budget: at that rate, a 7-day budget is gone in
-about 12 hours (7 days ÷ 14.4).
+`week-06-devops/observability/prometheus/rules/slo-alerts.yml`. The error-rate and
+login thresholds are a 14.4x burn rate of the SLO's error budget: at that rate, a
+7-day budget is gone in about 12 hours (7 days ÷ 14.4). The latency alert is a plain
+threshold on p95.
 
 | Alert | Fires when | For | Severity | Runbook |
 |---|---|---|---|---|

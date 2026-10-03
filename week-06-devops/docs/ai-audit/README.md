@@ -25,3 +25,4 @@ The reviewed version lives at the path in the table; compare the two with `diff 
 | `frontend-image.draft` | `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/.dockerignore` | 2026-10-02 | Issue #78: a multi-stage frontend image served by unprivileged Nginx |
 | `gateway-frontend-routing.draft` | `backend/gateway/nginx.conf` routing and the `frontend` service in `backend/docker-compose.yml` | 2026-10-02 | Issue #78: send the API paths to the API and everything else to the SPA through one gateway |
 | `ci-frontend-image.yml.draft` | frontend steps of the `package` job in `.github/workflows/ci.yml` | 2026-10-03 | Issue #78: build, smoke-test and check the frontend image in CI with the backend tag scheme |
+| `ci-audit-job.yml.draft` | `audit` job in `.github/workflows/ci.yml` | 2026-10-03 | Issue #79: audit backend and frontend dependencies for known vulnerabilities, and fail if a `.env` file is tracked |

@@ -72,9 +72,43 @@ jobs:
       - run: npm run test:coverage
       - run: npm run build
 
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      # Pinned like every other dependency: an unpinned scanner changes under the gate it enforces.
+      - name: Audit backend dependencies
+        run: |
+          pip install pip-audit==2.10.1
+          pip-audit -r week-06-devops/backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # Blocks on what ships: the runtime image holds only dist/, so dev tooling never reaches it.
+      - name: Audit frontend runtime dependencies
+        working-directory: week-06-devops/frontend
+        run: npm audit --omit=dev --audit-level=high
+      # Kept visible without blocking: braces (GHSA-vfj7-8cjw-p6xm) reaches only the lint config and has no fix.
+      - name: Audit all frontend dependencies (report only)
+        working-directory: week-06-devops/frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      # Any .env variant counts (.env.local, .env.production); only the placeholder template is allowed.
+      - name: Check that no .env file is tracked
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\..+)?$' | grep -v '\.env\.example$'; then
+            echo "A .env file is committed"; exit 1
+          fi
+
   package:
-    # No image is built from code that failed lint or tests.
-    needs: [backend, frontend]
+    # No image is built from code that failed lint, tests or the dependency audit.
+    needs: [backend, frontend, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

@@ -1,0 +1,26 @@
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Audit backend dependencies
+        run: |
+          pip install pip-audit
+          pip-audit -r week-06-devops/backend/requirements.txt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Audit frontend dependencies
+        working-directory: week-06-devops/frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Full frontend audit (report only)
+        working-directory: week-06-devops/frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: No .env file is tracked
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "A .env file is committed"; exit 1
+          fi
